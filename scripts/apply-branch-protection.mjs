@@ -22,7 +22,8 @@
  * `gh pr checks <pr>` (or the PR "Checks" tab), then re-run with them.
  *
  * Usage:
- *   node scripts/apply-branch-protection.mjs <owner/repo> [--checks "a,b,c"] [--dry-run]
+ *   node scripts/apply-branch-protection.mjs <owner/repo> [--checks "a; b; c"] [--approvals N] [--dry-run]
+ *   (--checks is semicolon-separated — matrix check names contain commas.)
  *
  * Examples:
  *   node scripts/apply-branch-protection.mjs signalxjs/core
