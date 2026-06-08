@@ -47,7 +47,9 @@ for (let i = 0; i < argv.length; i++) {
     if (a === '--dry-run') dryRun = true;
     else if (a === '--checks') {
         const v = argv[++i];
-        if (!v) die('--checks needs a value, e.g. --checks "test (ubuntu-latest, 22); verify-pack"');
+        // Reject a missing value or a following flag (e.g. `--checks --dry-run`)
+        // rather than silently consuming it as a check-run name.
+        if (!v || v.startsWith('-')) die('--checks needs a value, e.g. --checks "test (ubuntu-latest, 22); verify-pack"');
         // Split on ';' — NOT ',' — because matrix check-run names contain commas
         // ("test (ubuntu-latest, 22)"). Repeatable: values accumulate across flags.
         checks.push(...v.split(';').map((s) => s.trim()).filter(Boolean));
