@@ -149,7 +149,7 @@ function cmdNew(positional, flags) {
 
     console.log(`\n✓ Worktree '${name}' ready.\nNext:`);
     console.log(`  cd "${worktree}"`);
-    console.log('  pnpm typecheck && pnpm test   # verify the checkout works');
+    console.log('  pnpm typecheck   # plus the repo\'s test/build scripts, to verify the checkout works');
     console.log('  # …or launch an agent session from that directory for isolated parallel work.');
 }
 
