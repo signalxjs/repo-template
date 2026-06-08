@@ -151,7 +151,9 @@ if (dryRun) {
 }
 
 // Verify auth before mutating, for a clear error rather than a cryptic API failure.
-if (gh(['auth', 'status']).status !== 0) {
+// Use `gh api user` (the active token) rather than `gh auth status`, which exits
+// non-zero if any *other* configured account is broken even when the active one works.
+if (gh(['api', 'user', '-q', '.login']).status !== 0) {
     die('Not authenticated — run `gh auth login` (need admin on the repo).');
 }
 
