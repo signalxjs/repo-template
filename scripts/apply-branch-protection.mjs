@@ -12,8 +12,10 @@
  *     - Auto-delete head branches after merge.
  *   Ruleset "sigx-standard: protect main" on `main`:
  *     - No direct pushes — changes land via PR only.
- *     - PR required: >= 1 approving review, stale approvals dismissed on new
- *       commits, CODEOWNERS review required, review threads must resolve.
+ *     - PR required: `--approvals N` approving reviews (default 1; pass 0 for a
+ *       solo repo where the owner merges without a separate approval), stale
+ *       approvals dismissed on new commits, CODEOWNERS review when approvals >= 1,
+ *       review threads must resolve.
  *     - No force-push and no deletion of `main`.
  *     - (Optional) required status checks green before merge — pass --checks.
  *
@@ -48,8 +50,9 @@ for (let i = 0; i < argv.length; i++) {
     else if (a === '--checks') {
         const v = argv[++i];
         // Reject a missing value or a following flag (e.g. `--checks --dry-run`)
-        // rather than silently consuming it as a check-run name.
-        if (!v || v.startsWith('-')) die('--checks needs a value, e.g. --checks "test (ubuntu-latest, 22); verify-pack"');
+        // rather than silently consuming it. Only `--`-prefixed tokens are this
+        // script's flags; a single-dash check-run name (e.g. "-lint") is allowed.
+        if (!v || v.startsWith('--')) die('--checks needs a value, e.g. --checks "test (ubuntu-latest, 22); verify-pack"');
         // Split on ';' — NOT ',' — because matrix check-run names contain commas
         // ("test (ubuntu-latest, 22)"). Repeatable: values accumulate across flags.
         checks.push(...v.split(';').map((s) => s.trim()).filter(Boolean));
@@ -64,8 +67,9 @@ if (!repo || !/^[^/]+\/[^/]+$/.test(repo)) {
     die('Usage: node scripts/apply-branch-protection.mjs <owner/repo> [--checks "a; b"] [--approvals N] [--dry-run]\n' +
         '  --checks  semicolon-separated check-run names (repeatable). Use ";" not "," —\n' +
         '            matrix names contain commas, e.g. "test (ubuntu-latest, 22); verify-pack".\n' +
-        '  --approvals 0  → PR + CI required, but the author/owner may merge without a separate approval\n' +
-        '                   (use for solo/small repos where Copilot reviews but can\'t formally approve)');
+        '  --approvals 0  → PR required (plus any --checks), but the author/owner may merge\n' +
+        '                   without a separate approval (for solo/small repos where Copilot\n' +
+        '                   reviews but can\'t formally approve)');
 }
 
 // ── gh helpers ───────────────────────────────────────────────────────────────
