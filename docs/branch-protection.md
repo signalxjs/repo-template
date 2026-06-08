@@ -17,11 +17,16 @@ node scripts/apply-branch-protection.mjs signalxjs/<REPO>
 
 # also require CI to be green — pass your real check-run names:
 node scripts/apply-branch-protection.mjs signalxjs/<REPO> \
-  --checks "test (ubuntu-latest, 22), verify-pack"
+  --checks "test (ubuntu-latest, 22), verify-pack, codecov/patch"
 
 # preview without changing anything:
 node scripts/apply-branch-protection.mjs signalxjs/<REPO> --dry-run
 ```
+
+Including **`codecov/patch`** is what makes the test-first convention
+non-optional: it fails any PR whose changed lines aren't covered (config in
+[`codecov.yml`](../codecov.yml); setup in [adopting.md](adopting.md#enable-codecov-coverage-gating)).
+Add it only once Codecov is reporting on the repo, or no PR will be mergeable.
 
 It's idempotent: it finds the ruleset named **“sigx-standard: protect main”** by
 name and updates it, or creates it if missing.

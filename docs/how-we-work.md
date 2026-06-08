@@ -90,7 +90,9 @@ touching the fix, then make it go green. The red→green transition proves the f
 actually addresses the bug (not just something adjacent), and the test stays
 behind as a regression guard so the bug can't silently come back. Never fix a bug
 without a test that would have caught it; any missing coverage you stumble on gets
-filled in the same PR.
+filled in the same PR. CI backs this mechanically: Codecov's `codecov/patch` check
+(config in [`codecov.yml`](../codecov.yml)) fails any PR whose changed lines aren't
+covered, and it's a required status on `main` — so a fix with no test can't merge.
 
 Code changes run `pnpm typecheck` (always, for any `.ts`) plus the relevant
 `pnpm test` / `pnpm build`, with evidence shown. CI re-runs the same gate on

@@ -147,6 +147,7 @@ ruleset and the reasoning.
 | Workflow | Trigger | Does |
 |---|---|---|
 | `ci.yml` | PR + push to `main` | Lint → typecheck → build → test on Node 20/22 (Linux) + 22 (Windows); pack-verify; coverage → Codecov |
+| `codecov.yml` | (config) | **Patch-coverage gate** — `codecov/patch` fails a PR whose changed lines aren't tested, enforcing the test-first convention. Project coverage stays informational |
 | `bundle-size.yml` | PR | `size-limit` check, comments the delta on the PR |
 | `release-drafter.yml` | push/PR to `main` | Maintains a draft release + auto-labels PRs from Conventional-Commit titles |
 | `release.yml` | tag `v*.*.*` | Re-runs the full gate, then npm **trusted publishing** (OIDC, provenance) + GitHub Release |

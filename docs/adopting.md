@@ -86,11 +86,32 @@ Then, file by file:
 - [ ] **`SECURITY.md`** — set the supported-versions line.
 - [ ] **`package.json`** — `name`, `description`, `repository`, plus `lint` /
       `typecheck` / `build` / `test` / `size` scripts that `AGENTS.md` and CI call.
+- [ ] **`codecov.yml`** — keep as-is to enforce patch coverage, or tune the
+      `patch` target. See "Enable Codecov coverage gating" below to turn it on.
+
+### Enable Codecov coverage gating
+
+This is what mechanically enforces the test-first convention — a PR whose changed
+lines aren't tested fails the `codecov/patch` check. To turn it on:
+
+1. Install the **[Codecov GitHub App](https://github.com/apps/codecov)** on the
+   `signalxjs` org (or this repo) so Codecov can post checks.
+2. Add the repo on [codecov.io](https://about.codecov.io/) and copy its upload
+   token into the repo's `CODECOV_TOKEN` Actions secret
+   (`gh secret set CODECOV_TOKEN -R signalxjs/<REPO>`). The `coverage` job in
+   `ci.yml` already uploads using it.
+3. Make `codecov/patch` a **required status check** on `main` once it's reporting:
+   ```sh
+   node scripts/apply-branch-protection.mjs signalxjs/<REPO> \
+     --checks "test (ubuntu-latest, 22), verify-pack, codecov/patch"
+   ```
+   (`codecov.yml` keeps `codecov/project` informational, so only the patch gate
+   blocks.)
 
 ### Trimming workflows per repo
 
-- `ci.yml` — keep always. Drop the `coverage` job if you don’t use Codecov (else
-  set the `CODECOV_TOKEN` secret). Drop `verify-pack` if you don’t publish.
+- `ci.yml` — keep always. Don't use Codecov? Drop the `coverage` job *and*
+  `codecov.yml`. Drop `verify-pack` if you don't publish.
 - `bundle-size.yml` — keep only if you ship a size-limited bundle.
 - `release.yml` — keep only if you publish to npm; needs `scripts/publish.js` +
   trusted publishing configured on npmjs.com. See its header comment.
