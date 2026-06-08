@@ -7,7 +7,7 @@ Two paths: a **new repo** (use the GitHub template) or an **existing repo**
 
 ## New repo — “Use this template”
 
-1. On <https://github.com/signalxjs/standard>, click **“Use this template” →
+1. On <https://github.com/signalxjs/repo-template>, click **“Use this template” →
    “Create a new repository”**. Name it, owner `signalxjs`.
 2. Clone it into the standard layout (note the `/main` folder):
    ```sh

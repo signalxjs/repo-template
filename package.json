@@ -1,12 +1,12 @@
 {
-  "name": "@sigx/standard",
+  "name": "@sigx/repo-template",
   "version": "0.1.0",
   "private": true,
   "description": "The canonical sigx repo setup: agent workflow, git-worktree flow, CI/release pipeline, branch protection, and governance — as a GitHub template.",
   "type": "module",
   "repository": {
     "type": "git",
-    "url": "https://github.com/signalxjs/standard.git"
+    "url": "https://github.com/signalxjs/repo-template.git"
   },
   "author": "Andreas Ekdahl <andy@ekdahls.net>",
   "license": "MIT",

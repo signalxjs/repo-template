@@ -1,4 +1,4 @@
-# sigx-standard — how we work in SignalX
+# repo-template — how we work in SignalX
 
 > The canonical engineering setup for every repo under
 > [`signalxjs`](https://github.com/signalxjs). This is a **GitHub template

@@ -18,7 +18,7 @@ file wins for that tool only.
 
 This is the sigx standard agent setup. The same pattern (this file +
 `scripts/worktree.mjs` + a thin tool-specific file) is used across sigx repos —
-it originates in [`signalxjs/standard`](https://github.com/signalxjs/standard).
+it originates in [`signalxjs/repo-template`](https://github.com/signalxjs/repo-template).
 See "Adopting this setup in another sigx repo" at the bottom.
 
 <!-- TODO(sigx-standard): replace this paragraph with what THIS repo is. Example: -->
@@ -147,7 +147,7 @@ digits, `.`, `_`, `-` only.
 ## Adopting this setup in another sigx repo
 
 This file, `scripts/worktree.mjs`, and `CLAUDE.md` are the portable sigx
-standard, maintained in [`signalxjs/standard`](https://github.com/signalxjs/standard).
+standard, maintained in [`signalxjs/repo-template`](https://github.com/signalxjs/repo-template).
 To adopt it in another repo:
 
 1. Check the repo out using the standard layout: primary checkout at

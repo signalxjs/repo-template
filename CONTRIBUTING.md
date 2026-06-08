@@ -4,7 +4,7 @@ Thanks for your interest! This repo is part of the
 [`signalxjs`](https://github.com/signalxjs) family. It follows the **sigx
 standard** working setup — agent guide, git-worktree flow, CI/release pipeline,
 and protected `main` — maintained in
-[`signalxjs/standard`](https://github.com/signalxjs/standard).
+[`signalxjs/repo-template`](https://github.com/signalxjs/repo-template).
 
 ## Prerequisites
 
