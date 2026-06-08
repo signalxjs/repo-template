@@ -23,7 +23,8 @@
 - [ ] `pnpm test` passes
 - [ ] `pnpm build` passes
 - [ ] `CHANGELOG.md` updated under `[Unreleased]` (for user-visible changes)
-- [ ] Docs / READMEs updated (if public API changed)
+- [ ] In-repo docs updated for any package / script / API change (see `AGENTS.md` → Documentation)
+- [ ] User-facing change: companion docs-site PR opened in `signalxjs.github.io` and linked here
 
 ## Related issues
 

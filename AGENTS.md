@@ -139,6 +139,27 @@ from the global store — fast). Launch a **separate agent session from the
 worktree directory**; sessions stay independent per directory. Names: letters,
 digits, `.`, `_`, `-` only.
 
+## Documentation
+
+Docs are part of the change, not a follow-up — a change isn't done until the docs
+that describe it are updated. Two surfaces, two rules:
+
+**In-repo docs — update in *this* PR when you touch the matching thing:**
+
+| When you… | Update… |
+|---|---|
+| add / rename / remove a package | `AGENTS.md` "Packages", the README package table, `CONTRIBUTING` layout, the issue-template package dropdowns, `.size-limit.json`, and the `tsconfig` / `vitest` path aliases |
+| change a build / test / lint script | `AGENTS.md` "Build, Test, Lint", `CONTRIBUTING` "Common tasks", `package.json` |
+| change or add public API / behaviour | the package's own `README.md` and `CHANGELOG.md` under `[Unreleased]` |
+| change the workflow / process itself | `AGENTS.md` here — and, since it is the shared standard, upstream the same change to [`signalxjs/repo-template`](https://github.com/signalxjs/repo-template) |
+
+**The docs *site* is separate — don't edit it from here.** User-facing changes
+(new or changed public API, features, packages) also need a change to the docs
+site [`signalxjs/signalxjs.github.io`](https://github.com/signalxjs/signalxjs.github.io).
+That is a **separate PR in the docs repo**, opened per *its* `AGENTS.md` (which
+knows how the site pulls from each source repo) — **link it from this PR**. A
+user-facing change isn't shipped until its docs-site PR exists.
+
 ## Conventions & working principles
 
 - **Plan first for non-trivial work.** Both Claude Code and Copilot CLI have a built-in plan mode; use it and let the CLI manage the plan file.

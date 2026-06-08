@@ -66,6 +66,7 @@ pnpm build
 - **Reference an issue** if one exists; otherwise describe the motivation in the PR body.
 - **Add tests.** New behaviour gets tests. **Fix bugs test-first:** add a unit test that *fails* because of the bug, then fix until it's green (red → green). If you spot behaviour that should be covered but isn't, add the missing tests in the same PR.
 - **Update `CHANGELOG.md`** under the `[Unreleased]` section (for user-visible changes).
+- **Update docs in the same PR.** Package/script/API changes update the in-repo docs (see `AGENTS.md` → Documentation); user-facing changes also need a companion PR to the docs site [`signalxjs/signalxjs.github.io`](https://github.com/signalxjs/signalxjs.github.io), linked from here.
 - **Don't bump versions** in your PR — releases are handled centrally via tags.
 - **Squash-merge only.** `main` rejects merge commits; CI must be green and the
   PR reviewed before merge.
