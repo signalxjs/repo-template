@@ -48,9 +48,12 @@ agents the issue-first flow below is required.)
    `<N-short-slug>`. Don't substitute `git switch -c` in the primary checkout —
    it occupies `<repo>/main`, which parallel sessions share.
 
-3. **Implement & verify.** Make the change, then prove it: `pnpm typecheck` (always,
-   for any `.ts`) plus the relevant `pnpm test` / `pnpm build`. Stage specific
-   files (`git add <path>`), never `git add -A`. No co-author trailers.
+3. **Implement & verify.** For a **bug fix, write a failing unit test that
+   reproduces the bug *first*** (red), then make the fix so that test passes
+   (green) — see "Test-first bug fixes" under Conventions. Either way, prove the
+   change: `pnpm typecheck` (always, for any `.ts`) plus the relevant `pnpm test`
+   / `pnpm build`. Stage specific files (`git add <path>`), never `git add -A`.
+   No co-author trailers.
 
 4. **Open a PR with Copilot as the reviewer.** Reference the issue so it auto-closes
    on merge:
@@ -140,6 +143,7 @@ digits, `.`, `_`, `-` only.
 
 - **Plan first for non-trivial work.** Both Claude Code and Copilot CLI have a built-in plan mode; use it and let the CLI manage the plan file.
 - **Verify before declaring done.** Run typecheck/tests for code changes; show evidence the change works.
+- **Test-first bug fixes.** Reproduce the bug with a *failing* unit test first (red), then make the fix so the test goes green — the failing test proves both that the bug exists and that the fix actually addresses it, and it stays behind as a regression test. Never fix a bug without a test that would have caught it. While you're in the area, if you find behaviour that should be covered but isn't, add the missing tests in the same PR.
 - **Minimal, surgical edits.** Don't refactor unrelated code. Don't add backward-compat shims for things that never shipped.
 - **Cross-platform paths**: Contributors and CI run on Windows, macOS and Linux — use the path separator and shell syntax of the environment you're in, and prefer Node scripts over shell one-liners for anything committed to the repo.
 - **Git hygiene**: Stage specific files (`git add <path>`), never `git add -A` / `git add .`. Run `pnpm typecheck` before any commit touching `.ts`. Do **not** add co-author trailers to commits (e.g. `Co-Authored-By: Claude …` / `Co-authored-by: Copilot …`).

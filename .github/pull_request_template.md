@@ -18,6 +18,7 @@
 ## Checklist
 
 - [ ] Tests added or updated (if behavior changed)
+- [ ] Bug fix: added a unit test that fails without the fix (red → green)
 - [ ] `pnpm lint` passes
 - [ ] `pnpm test` passes
 - [ ] `pnpm build` passes

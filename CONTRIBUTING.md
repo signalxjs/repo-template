@@ -64,7 +64,7 @@ pnpm build
 
 - **Keep PRs small and focused.** One logical change per PR.
 - **Reference an issue** if one exists; otherwise describe the motivation in the PR body.
-- **Add tests** for new behaviour or bug fixes.
+- **Add tests.** New behaviour gets tests. **Fix bugs test-first:** add a unit test that *fails* because of the bug, then fix until it's green (red → green). If you spot behaviour that should be covered but isn't, add the missing tests in the same PR.
 - **Update `CHANGELOG.md`** under the `[Unreleased]` section (for user-visible changes).
 - **Don't bump versions** in your PR — releases are handled centrally via tags.
 - **Squash-merge only.** `main` rejects merge commits; CI must be green and the

@@ -85,6 +85,13 @@ tool-specific file conflicts with `AGENTS.md`, it wins *for that tool only*.
 
 ## 5. Verify before “done”
 
+**Bug fixes are test-first.** Reproduce the bug with a failing unit test *before*
+touching the fix, then make it go green. The red→green transition proves the fix
+actually addresses the bug (not just something adjacent), and the test stays
+behind as a regression guard so the bug can't silently come back. Never fix a bug
+without a test that would have caught it; any missing coverage you stumble on gets
+filled in the same PR.
+
 Code changes run `pnpm typecheck` (always, for any `.ts`) plus the relevant
 `pnpm test` / `pnpm build`, with evidence shown. CI re-runs the same gate on
 Node 20 + 22 on Linux and Node 22 on Windows — because contributors and CI span
