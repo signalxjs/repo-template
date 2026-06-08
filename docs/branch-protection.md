@@ -43,9 +43,12 @@ name and updates it, or creates it if missing.
 
 - **No direct pushes** — the branch is only writable through a PR.
 - **Pull request required**, with:
-  - at least **1 approving review**,
+  - **`--approvals N` approving reviews** (default **1**; pass `--approvals 0` for a
+    solo/small repo where a PR + green CI is required but the author/owner merges
+    without a separate human approval — GitHub blocks self-approval, and Copilot
+    reviews but can't formally approve),
   - **stale approvals dismissed** when new commits are pushed,
-  - **CODEOWNERS review required** (so `.github/CODEOWNERS` actually gates),
+  - **CODEOWNERS review required** when `--approvals` ≥ 1 (so `.github/CODEOWNERS` gates),
   - **review threads must be resolved** before merge.
 - **No force-push** (`non_fast_forward`) and **no deletion** of `main`.
 - **Required status checks** (optional, via `--checks`): the listed checks must

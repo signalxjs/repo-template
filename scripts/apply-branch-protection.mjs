@@ -40,6 +40,7 @@ const argv = process.argv.slice(2);
 let repo;
 let checks = [];
 let dryRun = false;
+let approvals = 1; // required approving reviews; 0 = PR required but owner may self-merge
 for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--dry-run') dryRun = true;
@@ -47,11 +48,17 @@ for (let i = 0; i < argv.length; i++) {
         const v = argv[++i];
         if (!v) die('--checks needs a value, e.g. --checks "test (ubuntu-latest, 22), verify-pack"');
         checks = v.split(',').map((s) => s.trim()).filter(Boolean);
+    } else if (a === '--approvals') {
+        const v = argv[++i];
+        if (!/^\d+$/.test(v ?? '')) die('--approvals needs a non-negative integer, e.g. --approvals 0');
+        approvals = Number(v);
     } else if (!a.startsWith('-') && !repo) repo = a;
     else die(`Unexpected argument: ${a}`);
 }
 if (!repo || !/^[^/]+\/[^/]+$/.test(repo)) {
-    die('Usage: node scripts/apply-branch-protection.mjs <owner/repo> [--checks "a,b"] [--dry-run]');
+    die('Usage: node scripts/apply-branch-protection.mjs <owner/repo> [--checks "a,b"] [--approvals N] [--dry-run]\n' +
+        '  --approvals 0  → PR + CI required, but the author/owner may merge without a separate approval\n' +
+        '                   (use for solo/small repos where Copilot reviews but can\'t formally approve)');
 }
 
 // ── gh helpers ───────────────────────────────────────────────────────────────
@@ -92,9 +99,10 @@ const repoSettings = {
 const pullRequestRule = {
     type: 'pull_request',
     parameters: {
-        required_approving_review_count: 1,
+        required_approving_review_count: approvals,
         dismiss_stale_reviews_on_push: true,
-        require_code_owner_review: true,
+        // Code-owner review implies an approval — only enforce it when approvals are required.
+        require_code_owner_review: approvals > 0,
         require_last_push_approval: false,
         required_review_thread_resolution: true,
     },
@@ -131,6 +139,7 @@ const ruleset = {
 console.log(`Repo:   ${repo}`);
 console.log(`Branch: ${DEFAULT_BRANCH}`);
 console.log(`Checks: ${checks.length ? checks.join(', ') : '(none — pass --checks to require CI green)'}`);
+console.log(`Reviews: ${approvals} approving review(s)${approvals === 0 ? ' — PR required, owner may self-merge' : ', CODEOWNERS enforced'}`);
 console.log(`Merges: squash-only, auto-delete branch on merge`);
 
 if (dryRun) {
