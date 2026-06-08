@@ -1,0 +1,21 @@
+{
+  "name": "@sigx/standard",
+  "version": "0.1.0",
+  "private": true,
+  "description": "The canonical sigx repo setup: agent workflow, git-worktree flow, CI/release pipeline, branch protection, and governance — as a GitHub template.",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/signalxjs/standard.git"
+  },
+  "author": "Andreas Ekdahl <andy@ekdahls.net>",
+  "license": "MIT",
+  "packageManager": "pnpm@10.33.4",
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
+  },
+  "scripts": {
+    "wt": "node scripts/worktree.mjs",
+    "branch-protection": "node scripts/apply-branch-protection.mjs"
+  }
+}
