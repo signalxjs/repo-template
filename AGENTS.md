@@ -148,7 +148,7 @@ that describe it are updated. Two surfaces, two rules:
 
 | When you… | Update… |
 |---|---|
-| add / rename / remove a package | `AGENTS.md` "Packages", the README package table, `CONTRIBUTING` layout, the issue-template package dropdowns, `.size-limit.json`, and the `tsconfig` / `vitest` path aliases |
+| add / rename / remove a package | `AGENTS.md` "Packages" and the README package table — plus, **whichever of these the repo has**: `CONTRIBUTING` layout, the issue-template package dropdowns, `.size-limit.json`, and the `tsconfig` / `vitest` path aliases |
 | change a build / test / lint script | `AGENTS.md` "Build, Test, Lint", `CONTRIBUTING` "Common tasks", `package.json` |
 | change or add public API / behaviour | the package's own `README.md` and `CHANGELOG.md` under `[Unreleased]` |
 | change the workflow / process itself | `AGENTS.md` here — and, since it is the shared standard, upstream the same change to [`signalxjs/repo-template`](https://github.com/signalxjs/repo-template) |
@@ -166,7 +166,7 @@ user-facing change isn't shipped until its docs-site PR exists.
 - **Verify before declaring done.** Run typecheck/tests for code changes; show evidence the change works.
 - **Test-first bug fixes.** Reproduce the bug with a *failing* unit test first (red), then make the fix so the test goes green — the failing test proves both that the bug exists and that the fix actually addresses it, and it stays behind as a regression test. Never fix a bug without a test that would have caught it. While you're in the area, if you find behaviour that should be covered but isn't, add the missing tests in the same PR.
 - **Minimal, surgical edits.** Don't refactor unrelated code. Don't add backward-compat shims for things that never shipped.
-- **Cross-platform paths**: Contributors and CI run on Windows, macOS and Linux — use the path separator and shell syntax of the environment you're in, and prefer Node scripts over shell one-liners for anything committed to the repo.
+- **Cross-platform paths**: Contributors and CI can run on Windows, macOS or Linux (check this repo's CI matrix for what it actually covers) — use the path separator and shell syntax of the environment you're in, and prefer Node scripts over shell one-liners for anything committed to the repo.
 - **Git hygiene**: Stage specific files (`git add <path>`), never `git add -A` / `git add .`. Run `pnpm typecheck` before any commit touching `.ts`. Do **not** add co-author trailers to commits (e.g. `Co-Authored-By: Claude …` / `Co-authored-by: Copilot …`).
 
 ## Adopting this setup in another sigx repo
