@@ -17,7 +17,7 @@ node scripts/apply-branch-protection.mjs signalxjs/<REPO>
 
 # also require CI to be green — pass your real check-run names:
 node scripts/apply-branch-protection.mjs signalxjs/<REPO> \
-  --checks "test (ubuntu-latest, 22), verify-pack, codecov/patch"
+  --checks "test (ubuntu-latest, 22); verify-pack; codecov/patch"
 
 # preview without changing anything:
 node scripts/apply-branch-protection.mjs signalxjs/<REPO> --dry-run

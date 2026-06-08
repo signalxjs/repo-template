@@ -26,7 +26,7 @@
  *
  * Examples:
  *   node scripts/apply-branch-protection.mjs signalxjs/core
- *   node scripts/apply-branch-protection.mjs signalxjs/core --checks "test (ubuntu-latest, 22), verify-pack"
+ *   node scripts/apply-branch-protection.mjs signalxjs/core --checks "test (ubuntu-latest, 22); verify-pack"
  *
  * Requirements: `gh` CLI authenticated (`gh auth login`) with admin on the repo.
  */
@@ -46,8 +46,10 @@ for (let i = 0; i < argv.length; i++) {
     if (a === '--dry-run') dryRun = true;
     else if (a === '--checks') {
         const v = argv[++i];
-        if (!v) die('--checks needs a value, e.g. --checks "test (ubuntu-latest, 22), verify-pack"');
-        checks = v.split(',').map((s) => s.trim()).filter(Boolean);
+        if (!v) die('--checks needs a value, e.g. --checks "test (ubuntu-latest, 22); verify-pack"');
+        // Split on ';' — NOT ',' — because matrix check-run names contain commas
+        // ("test (ubuntu-latest, 22)"). Repeatable: values accumulate across flags.
+        checks.push(...v.split(';').map((s) => s.trim()).filter(Boolean));
     } else if (a === '--approvals') {
         const v = argv[++i];
         if (!/^\d+$/.test(v ?? '')) die('--approvals needs a non-negative integer, e.g. --approvals 0');
@@ -56,7 +58,9 @@ for (let i = 0; i < argv.length; i++) {
     else die(`Unexpected argument: ${a}`);
 }
 if (!repo || !/^[^/]+\/[^/]+$/.test(repo)) {
-    die('Usage: node scripts/apply-branch-protection.mjs <owner/repo> [--checks "a,b"] [--approvals N] [--dry-run]\n' +
+    die('Usage: node scripts/apply-branch-protection.mjs <owner/repo> [--checks "a; b"] [--approvals N] [--dry-run]\n' +
+        '  --checks  semicolon-separated check-run names (repeatable). Use ";" not "," —\n' +
+        '            matrix names contain commas, e.g. "test (ubuntu-latest, 22); verify-pack".\n' +
         '  --approvals 0  → PR + CI required, but the author/owner may merge without a separate approval\n' +
         '                   (use for solo/small repos where Copilot reviews but can\'t formally approve)');
 }
@@ -184,6 +188,6 @@ if (!checks.length) {
     console.log(
         '\nNext: require CI to be green before merge. Find your check names on an\n' +
         'open PR with `gh pr checks <pr>`, then re-run with e.g.\n' +
-        `  node scripts/apply-branch-protection.mjs ${repo} --checks "test (ubuntu-latest, 22), verify-pack"`,
+        `  node scripts/apply-branch-protection.mjs ${repo} --checks "test (ubuntu-latest, 22); verify-pack"`,
     );
 }

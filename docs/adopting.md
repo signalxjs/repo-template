@@ -103,7 +103,7 @@ lines aren't tested fails the `codecov/patch` check. To turn it on:
 3. Make `codecov/patch` a **required status check** on `main` once it's reporting:
    ```sh
    node scripts/apply-branch-protection.mjs signalxjs/<REPO> \
-     --checks "test (ubuntu-latest, 22), verify-pack, codecov/patch"
+     --checks "test (ubuntu-latest, 22); verify-pack; codecov/patch"
    ```
    (`codecov.yml` keeps `codecov/project` informational, so only the patch gate
    blocks.)
