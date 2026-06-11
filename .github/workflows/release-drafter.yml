@@ -8,7 +8,7 @@ on:
   # code — the drafter config is read from the base branch via the API. Never
   # add a checkout of PR code to this workflow.
   pull_request_target:
-    types: [opened, reopened, synchronize]
+    types: [opened, reopened, synchronize, edited]
     branches: [main]
 
 permissions: {}
@@ -22,7 +22,7 @@ jobs:
       contents: write
       pull-requests: read
     steps:
-      - uses: release-drafter/release-drafter@v7
+      - uses: release-drafter/release-drafter@693d20e7c1ce1a81d3a41962f85914253b518449 # v7.3.1
         with:
           config-name: release-drafter.yml
         env:
@@ -38,7 +38,7 @@ jobs:
       contents: read
       pull-requests: write
     steps:
-      - uses: release-drafter/release-drafter/autolabeler@v7
+      - uses: release-drafter/release-drafter/autolabeler@693d20e7c1ce1a81d3a41962f85914253b518449 # v7.3.1
         with:
           config-name: release-drafter.yml
         env:
