@@ -82,8 +82,9 @@ agents the issue-first flow below is required.)
    doesn't re-trigger on its own, re-request it: `gh pr edit <pr> --add-reviewer @copilot`.
    Repeat until Copilot has no remaining actionable feedback.
 
-6. **Merge it yourself.** Once Copilot's feedback is resolved AND CI is green, merge
-   (squash — repo rules block merge commits) and clean up:
+6. **Merge it yourself.** Once Copilot's feedback is resolved, CI is green, and —
+   for user-facing changes — the docs-repo issue is filed (see "Documentation"),
+   merge (squash — repo rules block merge commits) and clean up:
    ```sh
    gh pr checks <pr>                          # must be all green first
    gh pr merge <pr> --squash --delete-branch
@@ -154,11 +155,31 @@ that describe it are updated. Two surfaces, two rules:
 | change the workflow / process itself | `AGENTS.md` here — and, since it is the shared standard, upstream the same change to [`signalxjs/repo-template`](https://github.com/signalxjs/repo-template) |
 
 **The docs *site* is separate — don't edit it from here.** User-facing changes
-(new or changed public API, features, packages) also need a change to the docs
-site [`signalxjs/signalxjs.github.io`](https://github.com/signalxjs/signalxjs.github.io).
-That is a **separate PR in the docs repo**, opened per *its* `AGENTS.md` (which
-knows how the site pulls from each source repo) — **link it from this PR**. A
-user-facing change isn't shipped until its docs-site PR exists.
+(new or changed public API, features, packages) must end up documented on the
+docs site [`signalxjs/signalxjs.github.io`](https://github.com/signalxjs/signalxjs.github.io),
+but that work belongs to the **docs agent**, which works through the docs repo's
+issue queue. Don't open docs-site PRs from source repos — your job is to feed
+the queue, in two moments:
+
+- **Before merging a PR with user-facing changes, file an issue on the docs
+  repo** describing what changed and what the docs need to cover, and link it
+  from the PR:
+  ```sh
+  gh issue create --repo signalxjs/signalxjs.github.io \
+    --title "<REPO>: <what changed>" \
+    --body "Source: signalxjs/<REPO>#<pr>. <What needs documenting, and where on the site.> Not yet released."
+  ```
+  A user-facing PR isn't mergeable until its docs issue exists (see step 6 of
+  the workflow).
+- **When you cut a release** (push a `vX.Y.Z` tag), comment the release tag on
+  every open docs issue covering a change shipped in that release:
+  ```sh
+  gh issue comment <n> --repo signalxjs/signalxjs.github.io \
+    --body "Released in <REPO> vX.Y.Z (@sigx/<package>@X.Y.Z)."
+  ```
+  A docs issue without a release comment means *merged but not released — don't
+  document yet*; the release comment is the docs agent's signal that the change
+  is live and ready to document.
 
 ## Conventions & working principles
 

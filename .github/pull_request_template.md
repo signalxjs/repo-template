@@ -24,7 +24,7 @@
 - [ ] `pnpm build` passes
 - [ ] `CHANGELOG.md` updated under `[Unreleased]` (for user-visible changes)
 - [ ] In-repo docs updated for any package / script / API change (see `AGENTS.md` → Documentation)
-- [ ] User-facing change: companion docs-site PR opened in `signalxjs.github.io` and linked here
+- [ ] User-facing change: docs issue filed in `signalxjs.github.io` and linked here (tag it with the release once shipped)
 
 ## Related issues
 
