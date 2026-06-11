@@ -175,8 +175,9 @@ the queue, in two moments:
   every open docs issue covering a change shipped in that release:
   ```sh
   gh issue comment <n> --repo signalxjs/signalxjs.github.io \
-    --body "Released in <REPO> vX.Y.Z (@sigx/<package>@X.Y.Z)."
+    --body "Released in <REPO> vX.Y.Z."
   ```
+  (Mention the published package version(s) too if they differ from the tag.)
   A docs issue without a release comment means *merged but not released — don't
   document yet*; the release comment is the docs agent's signal that the change
   is live and ready to document.
