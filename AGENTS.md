@@ -91,10 +91,11 @@ agents the issue-first flow below is required.)
    from the PR (see "Documentation"), merge (squash — repo rules block merge
    commits) and clean up:
    ```sh
-   gh pr checks <pr>                          # must be all green first
-   gh pr merge <pr> --squash --delete-branch \
-     --subject "$(gh pr view <pr> --json title -q .title) (#<pr>)" \
-     --body "$(gh pr view <pr> --json body -q .body)"
+   pr=<pr>                                    # the PR number, once
+   gh pr checks "$pr"                         # must be all green first
+   gh pr merge "$pr" --squash --delete-branch \
+     --subject "$(gh pr view "$pr" --json title -q .title) (#$pr)" \
+     --body "$(gh pr view "$pr" --json body -q .body)"
    ```
    Pass `--subject`/`--body` explicitly, exactly as above — GitHub appends
    `Co-authored-by:` trailers to every message it generates itself (in **all**
