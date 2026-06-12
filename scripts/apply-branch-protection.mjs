@@ -9,13 +9,14 @@
  * What it enforces:
  *   Repo merge settings:
  *     - Squash-only merges (merge commits + rebase merges disabled) → linear history.
- *     - Squash commit message = PR title + PR body. GitHub's default mode
- *       (COMMIT_MESSAGES) auto-appends `Co-authored-by:` trailers for every
- *       branch-commit author that differs from the merging account — in
- *       agent-driven repos that puts a trailer on every squash commit, which
- *       the sigx standard forbids. PR_TITLE/PR_BODY uses the PR text verbatim,
- *       so no trailers are generated (and PR descriptions double as the commit
- *       body — write them accordingly).
+ *     - Squash commit message = PR title + PR body (instead of GitHub's default
+ *       COMMIT_MESSAGES concatenation), so PR descriptions double as the commit
+ *       body — write them accordingly. NOTE: GitHub still auto-appends
+ *       `Co-authored-by:` trailers to ANY message it generates itself, in every
+ *       squash-message mode, whenever a branch-commit author differs from the
+ *       merging account. The sigx standard forbids those trailers, so the merge
+ *       step (AGENTS.md step 6) must pass --subject/--body explicitly — an
+ *       explicit message is used verbatim, with nothing appended.
  *     - Auto-delete head branches after merge.
  *   Ruleset "sigx-standard: protect main" on `main`:
  *     - No direct pushes — changes land via PR only.
@@ -111,8 +112,9 @@ const repoSettings = {
     allow_merge_commit: false,
     allow_rebase_merge: false,
     delete_branch_on_merge: true,
-    // PR title + body verbatim — the default (COMMIT_MESSAGES) auto-appends
-    // Co-authored-by trailers for branch-commit authors, which the standard forbids.
+    // PR title + body instead of the COMMIT_MESSAGES concatenation. Trailers are
+    // NOT fully prevented here — GitHub appends Co-authored-by to any generated
+    // message — so the merge step also passes --subject/--body (AGENTS.md step 6).
     squash_merge_commit_title: 'PR_TITLE',
     squash_merge_commit_message: 'PR_BODY',
 };
