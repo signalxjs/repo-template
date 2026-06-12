@@ -9,6 +9,13 @@
  * What it enforces:
  *   Repo merge settings:
  *     - Squash-only merges (merge commits + rebase merges disabled) → linear history.
+ *     - Squash commit message = PR title + PR body. GitHub's default mode
+ *       (COMMIT_MESSAGES) auto-appends `Co-authored-by:` trailers for every
+ *       branch-commit author that differs from the merging account — in
+ *       agent-driven repos that puts a trailer on every squash commit, which
+ *       the sigx standard forbids. PR_TITLE/PR_BODY uses the PR text verbatim,
+ *       so no trailers are generated (and PR descriptions double as the commit
+ *       body — write them accordingly).
  *     - Auto-delete head branches after merge.
  *   Ruleset "sigx-standard: protect main" on `main`:
  *     - No direct pushes — changes land via PR only.
@@ -104,6 +111,10 @@ const repoSettings = {
     allow_merge_commit: false,
     allow_rebase_merge: false,
     delete_branch_on_merge: true,
+    // PR title + body verbatim — the default (COMMIT_MESSAGES) auto-appends
+    // Co-authored-by trailers for branch-commit authors, which the standard forbids.
+    squash_merge_commit_title: 'PR_TITLE',
+    squash_merge_commit_message: 'PR_BODY',
 };
 
 // ── 2. the ruleset ───────────────────────────────────────────────────────────
@@ -151,7 +162,7 @@ console.log(`Repo:   ${repo}`);
 console.log(`Branch: ${DEFAULT_BRANCH}`);
 console.log(`Checks: ${checks.length ? checks.join(', ') : '(none — pass --checks to require CI green)'}`);
 console.log(`Reviews: ${approvals} approving review(s)${approvals === 0 ? ' — PR required, owner may self-merge' : ', CODEOWNERS enforced'}`);
-console.log(`Merges: squash-only, auto-delete branch on merge`);
+console.log(`Merges: squash-only, message = PR title + body, auto-delete branch on merge`);
 
 if (dryRun) {
     console.log('\n--dry-run — would PATCH repo settings:');
@@ -172,7 +183,7 @@ if (gh(['api', 'user', '-q', '.login']).status !== 0) {
 ghJson(['api', '-X', 'PATCH', `repos/${owner}/${name}`, '--input', '-'], {
     input: JSON.stringify(repoSettings),
 });
-console.log('✓ Merge settings applied (squash-only, auto-delete).');
+console.log('✓ Merge settings applied (squash-only, PR title + body, auto-delete).');
 
 // Ruleset: find existing by name, then PUT (update) or POST (create) — idempotent.
 const existing = ghJson(['api', `repos/${owner}/${name}/rulesets`, '--paginate'], { allowFail: true }) || [];

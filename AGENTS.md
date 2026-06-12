@@ -61,6 +61,10 @@ agents the issue-first flow below is required.)
    gh pr create --base main --title "<title>" \
      --body "Closes #N. <short summary of the change>" --reviewer @copilot
    ```
+   The PR title and description become the squash commit message **verbatim**
+   (repo setting applied by `scripts/apply-branch-protection.mjs` — GitHub's
+   default mode would auto-append `Co-authored-by:` trailers), so write the
+   description as the commit body you want on `main`.
    (On an already-open PR: `gh pr edit <pr> --add-reviewer @copilot`.) The bot
    `copilot-pull-request-reviewer` posts its review within a minute or two. If your
    `gh` is too old to resolve `@copilot` (error: `'@copilot' not found`), request it
