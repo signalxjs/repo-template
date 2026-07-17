@@ -38,7 +38,9 @@ It captures the patterns first proven in
 | [`CLAUDE.md`](CLAUDE.md) | Thin Claude Code shim that imports `AGENTS.md` | **Verbatim** |
 | [`scripts/worktree.mjs`](scripts/worktree.mjs) | `pnpm wt new/list/rm` — the worktree helper | **Verbatim** |
 | [`scripts/apply-branch-protection.mjs`](scripts/apply-branch-protection.mjs) | Applies the `main` ruleset via `gh api` | **Verbatim** (pass the repo) |
-| [`.github/workflows/`](.github/workflows) | CI, bundle-size, release, release-drafter, dependabot auto-merge | Mostly verbatim; trim per repo |
+| [`scripts/sync-core.mjs`](scripts/sync-core.mjs) | `pnpm sync:core` — aligns the `catalog:` core pins to a core version (`--check` drift guard) | **Verbatim** |
+| [`scripts/check-catalog.mjs`](scripts/check-catalog.mjs) | `pnpm verify:catalog` — guards the single-minor catalog invariant (CI + local) | **Verbatim** |
+| [`.github/workflows/`](.github/workflows) | CI, bundle-size, release, release-drafter, dependabot auto-merge, core-sync | Mostly verbatim; trim per repo |
 | [`.github/`](.github) | CODEOWNERS, dependabot, PR + issue templates, SUPPORT | Edit owners, package lists |
 | `CONTRIBUTING.md`, `SECURITY.md`, `CODE_OF_CONDUCT.md` | Governance | Edit repo name/scope |
 | [`.npmrc`](.npmrc), [`.gitignore`](.gitignore), [`.size-limit.json`](.size-limit.json) | Workspace config | Edit paths/scope |
@@ -146,7 +148,8 @@ ruleset and the reasoning.
 
 | Workflow | Trigger | Does |
 |---|---|---|
-| `ci.yml` | PR + push to `main` | Lint → typecheck → build → test on Node 20/22 (Linux) + 22 (Windows); pack-verify; coverage → Codecov |
+| `ci.yml` | PR + push to `main` | Lint → **verify:catalog** → typecheck → build → test on Node 20/22 (Linux) + 22 (Windows); pack-verify; coverage → Codecov |
+| `core-sync.yml` | `core-released` dispatch, weekly cron, manual | Aligns the `catalog:` core pins to the new core version, proves it builds/tests green, then opens/updates a **“chore: align with core”** PR |
 | `codecov.yml` | (config) | **Patch-coverage gate** — `codecov/patch` fails a PR whose changed lines aren't tested, enforcing the test-first convention. Project coverage stays informational |
 | `bundle-size.yml` | PR | `size-limit` check, comments the delta on the PR |
 | `release-drafter.yml` | push/PR to `main` | Maintains a draft release + auto-labels PRs from Conventional-Commit titles |
@@ -156,6 +159,48 @@ ruleset and the reasoning.
 Releasing is tag-driven: bump versions → push a `vX.Y.Z` tag → `release.yml`
 publishes. No tokens in CI for npm — it uses OIDC trusted publishing, configured
 per-package on npmjs.com.
+
+---
+
+## Staying aligned with sigx core
+
+Every sigx repo consumes core packages (`@sigx/reactivity`, `@sigx/runtime-core`,
+`@sigx/runtime-dom`, `@sigx/server-renderer`, `@sigx/server`, `@sigx/ssr-islands`,
+`@sigx/resume`, `@sigx/cache`, `@sigx/vite`, `sigx`). Because core keeps reactive
+state in module-local variables, **exactly one physical copy must resolve** — two
+copies silently break reactivity. The guarantee: pin every core package to a
+**single minor** (`^X.Y.0` == `>=X.Y.0 <X.(Y+1).0`) so pnpm hoists one copy, and
+declare that pin **once** — in the `catalog:` block of `pnpm-workspace.yaml`. Every
+package.json then references it as `"catalog:"`.
+
+Three pieces keep that invariant honest and make a core bump a one-line, automated
+PR:
+
+| Piece | What it does |
+|---|---|
+| [`scripts/check-catalog.mjs`](scripts/check-catalog.mjs) (`pnpm verify:catalog`) | Fails CI if any package.json declares a core dep with an **inline** version instead of `"catalog:"`, or if a catalog core entry isn't a single-minor `^X.Y.0`. Wired into `ci.yml`. |
+| [`scripts/sync-core.mjs`](scripts/sync-core.mjs) (`pnpm sync:core [version]`) | Rewrites the catalog's **core** entries to `^X.Y.0` (siblings like `@sigx/router` are left alone). No arg = latest on npm. `--check` exits non-zero if a change *would* be made (drift guard). |
+| [`.github/workflows/core-sync.yml`](.github/workflows/core-sync.yml) | Runs `sync:core`, then `install → build → typecheck → test → verify:catalog`, and only if all green opens/updates a **“chore: align with core”** PR. A red PR never appears: if a core release breaks this repo, the workflow fails loudly instead. |
+
+### Closing the loop (core → consumers)
+
+`core-sync.yml` triggers three ways:
+
+- **`repository_dispatch` (`core-released`)** — the fast path. `signalxjs/core`’s
+  `release.yml` fans out a `core-released` event to every consumer right after it
+  publishes, so alignment PRs appear within minutes of a core release.
+- **`schedule`** — a weekly Monday cron as a safety net for any dispatch that was
+  missed (token expired, workflow absent, …).
+- **`workflow_dispatch`** — manual, with an optional target version.
+
+**The dispatch side lives in core, and needs a token.** The default `GITHUB_TOKEN`
+cannot dispatch to *other* repos, so core’s `notify-consumers` job authenticates
+with an **`ECOSYSTEM_DISPATCH_TOKEN`** secret — a fine-grained PAT (or GitHub App
+token) scoped `repository_dispatch: write` on each consumer repo. See the companion
+change in [`signalxjs/core`](https://github.com/signalxjs/core) that adds that job
+to `release.yml`. Until that token is created and that job merged, `core-sync.yml`
+still works via the weekly cron and manual dispatch — the dispatch just makes it
+instant.
 
 ---
 
