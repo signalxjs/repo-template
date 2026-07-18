@@ -30,6 +30,8 @@ Copy these from this template into the repo (keep the **verbatim** ones byte-for
 |---|---|
 | `scripts/worktree.mjs` | **verbatim** |
 | `scripts/apply-branch-protection.mjs` | **verbatim** |
+| `scripts/sync-core.mjs` | **verbatim** (core catalog alignment) |
+| `scripts/check-catalog.mjs` | **verbatim** (`verify:catalog` guard) |
 | `CLAUDE.md` | **verbatim** |
 | `AGENTS.md` | template — edit the repo-specific sections |
 | `.github/workflows/*` | copy what applies (see “trimming” below) |
@@ -43,7 +45,9 @@ Then add to the repo’s `package.json` scripts:
 {
   "scripts": {
     "wt": "node scripts/worktree.mjs",
-    "branch-protection": "node scripts/apply-branch-protection.mjs"
+    "branch-protection": "node scripts/apply-branch-protection.mjs",
+    "sync:core": "node scripts/sync-core.mjs",
+    "verify:catalog": "node scripts/check-catalog.mjs"
   }
 }
 ```
@@ -115,7 +119,48 @@ lines aren't tested fails the `codecov/patch` check. To turn it on:
 - `bundle-size.yml` — keep only if you ship a size-limited bundle.
 - `release.yml` — keep only if you publish to npm; needs `scripts/publish.js` +
   trusted publishing configured on npmjs.com. See its header comment.
+- `core-sync.yml` — keep for any repo that consumes sigx core. It needs the
+  `catalog:` block set up (below) and `verify:catalog` wired into `ci.yml`. Works
+  standalone via the weekly cron + manual dispatch; the instant `core-released`
+  path also needs the core-side token (below).
 - `release-drafter.yml`, `dependabot-automerge.yml` — keep for any repo.
+
+### Wire up core catalog alignment
+
+For any repo that consumes sigx core (`@sigx/reactivity` et al.):
+
+1. Add a `catalog:` block to `pnpm-workspace.yaml` pinning every core package this
+   repo uses to a single minor, e.g.:
+   ```yaml
+   catalog:
+     "@sigx/reactivity": ^0.12.0
+     "@sigx/runtime-core": ^0.12.0
+     sigx: ^0.12.0
+   ```
+   Then replace the version of every core dep in each package.json
+   (`dependencies` / `devDependencies` / `peerDependencies`) with `"catalog:"`.
+2. Add the `sync:core` + `verify:catalog` scripts (shown above) and keep the
+   **Verify catalog** step in `ci.yml`. Run `pnpm verify:catalog` locally to
+   confirm it's green.
+3. Keep `.github/workflows/core-sync.yml`. To make alignment PRs land *instantly*
+   on a core release (not just weekly), the core repo must dispatch a
+   `core-released` event to this repo — see "Activating the instant dispatch"
+   below.
+
+### Activating the instant dispatch (org-wide, one-time)
+
+`core-sync.yml` already listens for a `core-released` `repository_dispatch`. The
+sender lives in `signalxjs/core`'s `release.yml` (`notify-consumers` job). To turn
+the fast path on:
+
+1. Create a fine-grained PAT (or GitHub App token) scoped **`repository_dispatch:
+   write`** on every consumer repo under `signalxjs`.
+2. Store it as the **`ECOSYSTEM_DISPATCH_TOKEN`** secret **in the core repo**
+   (`gh secret set ECOSYSTEM_DISPATCH_TOKEN -R signalxjs/core`).
+3. Ensure each consumer's `core-sync.yml` is on `main` (this template ships it) and
+   the repo is listed in core's fan-out loop.
+
+Until that's done, `core-sync.yml` still catches new core releases weekly via cron.
 
 ---
 
