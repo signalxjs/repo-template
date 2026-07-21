@@ -96,7 +96,7 @@ agents the issue-first flow below is required.)
    ```sh
    # list the open threads
    gh api graphql -f query='query { repository(owner:"signalxjs", name:"<REPO>") {
-     pullRequest(number:<pr>) { reviewThreads(first:20) { nodes {
+     pullRequest(number:<pr>) { reviewThreads(first:100) { nodes {
        id isResolved comments(first:1){nodes{body}} } } } } }' \
      -q '.data.repository.pullRequest.reviewThreads.nodes[]
          | select(.isResolved==false) | "\(.id) \(.comments.nodes[0].body[0:60])"'
