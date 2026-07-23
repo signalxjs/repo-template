@@ -56,7 +56,11 @@ jobs:
             echo "No version supplied (cron or bare dispatch) — latest on npm is $V"
           fi
           MINOR=$(printf '%s' "$V" | sed -E 's/^v?([0-9]+)\.([0-9]+).*/\1.\2/')
-          if [ -z "$MINOR" ] || [ "$MINOR" = "$V" ]; then
+          # Validate the RESULT, never "did sed change the string" — an input that
+          # is already a bare minor ("0.13", which the manual-dispatch path accepts)
+          # comes back unchanged and would fail an equality check despite being
+          # perfectly valid.
+          if ! printf '%s' "$MINOR" | grep -qE '^[0-9]+\.[0-9]+$'; then
             echo "::error::could not parse a minor from core version '$V'"
             exit 1
           fi
