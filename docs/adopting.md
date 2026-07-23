@@ -141,6 +141,12 @@ For any repo that consumes sigx core (`@sigx/reactivity` et al.):
    Then replace the version of every core dep in each package.json
    (`dependencies` / `devDependencies` / `peerDependencies`) with `"catalog:"`.
 
+   An explanatory comment directly above the `catalog:` block is encouraged. If
+   it names the pinned minor as `^X.Y.0` and/or the explicit `>=X.Y.0 <X.(Y+1).0`
+   range, `sync:core` refreshes those tokens in the same pass as the pins — the
+   comment never goes stale on a bump. (Left stale, Copilot flags it on every
+   consumer, forcing an otherwise-clean alignment PR to AMBER.)
+
    **Step 1 is not optional and cannot be skipped.** `sync:core` edits the catalog
    and nothing else, so a repo whose core deps are still pinned inline has nothing
    for it to rewrite. It refuses to run in that state and names each offending
