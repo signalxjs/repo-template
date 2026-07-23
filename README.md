@@ -197,8 +197,11 @@ PR:
 
 **The dispatch side lives in core, and needs a token.** The default `GITHUB_TOKEN`
 cannot dispatch to *other* repos, so core’s `notify-consumers` job authenticates
-with an **`ECOSYSTEM_DISPATCH_TOKEN`** secret — a fine-grained PAT (or GitHub App
-token) scoped `repository_dispatch: write` on each consumer repo. See the companion
+with an **`ECOSYSTEM_DISPATCH_TOKEN`** secret — a fine-grained PAT whose
+**resource owner is the org** (not a personal account) granting **`Contents: Read
+and write`** on each consumer repo. There is no "Repository dispatch" permission —
+`POST /repos/{owner}/{repo}/dispatches` requires `Contents: Read and write`, which
+is broader than the job needs and the narrowest GitHub offers for it. See the companion
 change in [`signalxjs/core`](https://github.com/signalxjs/core) that adds that job
 to `release.yml`. Until that token is created and that job merged, `core-sync.yml`
 still works via the weekly cron and manual dispatch — the dispatch just makes it
