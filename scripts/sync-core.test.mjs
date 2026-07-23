@@ -113,6 +113,34 @@ test('does not touch a version-shaped token outside the adjacent comment block',
     assert.match(text, /Keep core single-minor \(\^0\.13\.0\)/, 'adjacent comment updated');
 });
 
+test('does not touch an unrelated-major caret INSIDE the adjacent comment block', () => {
+    // The rewrite is keyed on the version the catalog currently pins (^0.12.0), so
+    // an unrelated caret sharing the very same comment run — a Node engines note,
+    // a different major — must survive untouched. (Copilot review on #42.)
+    const src = [
+        '# Requires Node ^20.19.0 || >=22.12.0. Core is single-minor (^0.12.0 == >=0.12.0 <0.13.0).',
+        'catalog:',
+        '  "@sigx/reactivity": ^0.12.0',
+    ].join('\n');
+
+    const { text } = alignCatalog(src, '^0.13.0');
+    assert.match(text, /Requires Node \^20\.19\.0 \|\| >=22\.12\.0/, 'Node engines tokens untouched');
+    assert.match(text, /single-minor \(\^0\.13\.0 == >=0\.13\.0 <0\.14\.0\)/, 'core tokens bumped');
+});
+
+test('a MAJOR bump moves the old ^0.x correctly (keyed on the current pin, not the target)', () => {
+    const src = [
+        '# `^0.12.0` == `>=0.12.0 <0.13.0` (ONE minor).',
+        'catalog:',
+        '  "@sigx/reactivity": ^0.12.0',
+        '  sigx: ^0.12.0',
+    ].join('\n');
+
+    const { text } = alignCatalog(src, '^1.0.0');
+    assert.match(text, /`\^1\.0\.0` == `>=1\.0\.0 <1\.1\.0`/, 'comment moved to the new major');
+    assert.match(text, /"@sigx\/reactivity": \^1\.0\.0/);
+});
+
 test('is idempotent — a second run makes no further change', () => {
     const src = [
         '# `^0.12.0` == `>=0.12.0 <0.13.0` (ONE minor).',
@@ -128,9 +156,12 @@ test('is idempotent — a second run makes no further change', () => {
     assert.equal(second.text, first.text);
 });
 
-test('an already-aligned file with a stale comment still gets the comment fixed', () => {
-    // Pins current, comment stale — the drift `--check` should now catch, and a
-    // plain run should fix.
+test('leaves the comment alone when the catalog is already on the target (precise scoping)', () => {
+    // The rewrite is keyed on the version the catalog CURRENTLY pins. When the pins
+    // are already the target there is no current-but-stale core minor to key on, so
+    // the comment is left untouched rather than guessing which token is "the core
+    // one" — the deliberate trade for never clobbering an unrelated version. In the
+    // real workflow the pin bump and comment always move together.
     const src = [
         '# Keep core single-minor (^0.12.0).',
         'catalog:',
@@ -140,8 +171,8 @@ test('an already-aligned file with a stale comment still gets the comment fixed'
 
     const { text, pins, comments } = alignCatalog(src, '^0.13.0');
     assert.equal(pins.length, 0, 'no pin change');
-    assert.ok(comments.length >= 1, 'the stale comment is still reported as a change');
-    assert.match(text, /Keep core single-minor \(\^0\.13\.0\)/);
+    assert.equal(comments.length, 0, 'no comment change');
+    assert.equal(text, src, 'file untouched');
 });
 
 test('handles the minor rollover in the explicit range (0.13 -> <0.14.0)', () => {

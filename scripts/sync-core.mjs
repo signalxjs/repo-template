@@ -24,9 +24,11 @@
  * `catalog:` block — the `# … ^X.Y.0 == >=X.Y.0 <X.(Y+1).0 …` prose that names
  * the pinned minor. Left alone it goes stale on every bump (still citing the old
  * minor), and Copilot's review flags it on every consumer, turning an otherwise
- * clean catalog bump AMBER — a human forced in over a one-line comment. Scoped
- * to the contiguous comment run immediately above the header so no unrelated
- * version-shaped token (a Node engines range, say) is touched (#41).
+ * clean catalog bump AMBER — a human forced in over a one-line comment. The
+ * rewrite is doubly scoped: to the contiguous comment run immediately above the
+ * header, and within it to only the version the catalog CURRENTLY pins — so an
+ * unrelated caret sharing that block (a Node `^20.19.0` engines note, say) is
+ * never touched, and a major bump still moves the old `^0.x` correctly (#41).
  *
  * Because it can ONLY rewrite catalog entries, it refuses to run in a repo whose
  * core deps are pinned inline instead: there would be nothing for the walk to
@@ -48,6 +50,34 @@ import { CORE_PACKAGES, findInlineCoreDeps, formatInlineCoreDeps } from './lib/c
 const blockHeader = /^(catalog|catalogs)\s*:/;
 const entry = /^(\s+)(["']?)([@a-zA-Z0-9._/-]+)\2\s*:\s*(?:"([^"]*)"|'([^']*)'|([^\s#]+))(\s*(?:#.*)?)$/;
 
+/** Escape a string for literal use inside a `RegExp`. */
+const reEscape = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/**
+ * Call `cb(name, ver)` for every entry inside a `catalog:`/`catalogs:` block —
+ * the read-only walk, used to learn which core version the catalog currently
+ * pins. The write-side walk in `alignCatalog` uses the same block-termination
+ * rule (a comment never ends the block); the two must agree.
+ */
+function forEachCatalogEntry(lines, cb) {
+    let inCatalog = false;
+    let catalogIndent = -1;
+    for (const line of lines) {
+        if (blockHeader.test(line)) {
+            inCatalog = true;
+            catalogIndent = line.search(/\S/);
+            continue;
+        }
+        if (inCatalog) {
+            const indent = line.search(/\S/);
+            if (line.trim() !== '' && !/^\s*#/.test(line) && indent <= catalogIndent && !entry.test(line)) inCatalog = false;
+        }
+        if (!inCatalog) continue;
+        const m = entry.exec(line);
+        if (m) cb(m[3], m[4] ?? m[5] ?? m[6]);
+    }
+}
+
 /**
  * Align a `pnpm-workspace.yaml`'s core catalog pins — and the explanatory
  * comment above them — to `range`. Pure text transform: no I/O, no process exit,
@@ -60,24 +90,48 @@ const entry = /^(\s+)(["']?)([@a-zA-Z0-9._/-]+)\2\s*:\s*(?:"([^"]*)"|'([^']*)'|(
 export function alignCatalog(src, range) {
     const rm = /^\^(\d+)\.(\d+)\.0$/.exec(range);
     if (!rm) throw new Error(`alignCatalog: range must be a single-minor caret ^X.Y.0, got "${range}"`);
-    const major = Number(rm[1]);
-    const minor = Number(rm[2]);
-    const caret = `^${major}.${minor}.0`; // == range, but rebuilt from parts for clarity
-    const wide = `>=${major}.${minor}.0 <${major}.${minor + 1}.0`; // the equivalent explicit range
+    const tMaj = Number(rm[1]);
+    const tMin = Number(rm[2]);
+    const targetCaret = `^${tMaj}.${tMin}.0`; // == range, rebuilt from parts for clarity
+    const targetWide = `>=${tMaj}.${tMin}.0 <${tMaj}.${tMin + 1}.0`; // the equivalent explicit range
 
     const lines = src.split('\n');
 
     // The explanatory comment is the contiguous run of `#` lines immediately
-    // above a `catalog:`/`catalogs:` header. That run is the ONLY prose we
-    // rewrite version tokens in — scoping it this tightly is what keeps us from
-    // clobbering a version-shaped token that has nothing to do with the core pin
-    // (e.g. a Node `^20.19.0 || >=22.12.0` engines range in some other comment).
+    // above a `catalog:`/`catalogs:` header. Its version prose is the only prose
+    // we touch, and even there only the tokens naming the minor the catalog
+    // CURRENTLY pins — see `commentSubs` below.
     const commentLines = new Set();
     for (let i = 0; i < lines.length; i++) {
         if (blockHeader.test(lines[i])) {
             for (let j = i - 1; j >= 0 && /^\s*#/.test(lines[j]); j--) commentLines.add(j);
         }
     }
+
+    // Which minor(s) is the catalog on right now? We rewrite ONLY those tokens in
+    // the comment, keyed on the version the catalog itself declares — never "any
+    // caret". An unrelated version sharing that comment block (a Node `^20.19.0`
+    // engines note, say) matches no current core pin and is left alone, so the
+    // safety claim holds even across a major bump: the current `^0.12.0` is
+    // rewritten, a `^20.x` is not.
+    const commentSubs = [];
+    const seenMinor = new Set();
+    forEachCatalogEntry(lines, (name, ver) => {
+        if (!CORE_PACKAGES.has(name)) return;
+        const vm = /(\d+)\.(\d+)/.exec(ver); // lower bound of a caret or a wide range
+        if (!vm) return;
+        const maj = Number(vm[1]);
+        const min = Number(vm[2]);
+        const key = `${maj}.${min}`;
+        if ((maj === tMaj && min === tMin) || seenMinor.has(key)) return; // target, or already collected
+        seenMinor.add(key);
+        // Explicit range first (it contains no caret, so it can't collide with the
+        // caret pass); then the bare caret. Both forms name the same pinned minor.
+        commentSubs.push({
+            wide: new RegExp(`>=\\s*${reEscape(key)}(?:\\.\\d+)?\\s*<\\s*${maj}\\.${min + 1}(?:\\.\\d+)?`, 'g'),
+            caret: new RegExp(`\\^${reEscape(key)}(?:\\.\\d+)?`, 'g'),
+        });
+    });
 
     let inCatalog = false;
     let catalogIndent = -1;
@@ -86,15 +140,9 @@ export function alignCatalog(src, range) {
 
     const out = lines.map((line, idx) => {
         // --- explanatory-comment rewrite ---------------------------------------
-        if (commentLines.has(idx)) {
-            // Replace the explicit `>=X.Y.0 <X.(Y+1).0` range first, then any bare
-            // `^X.Y.0` caret. Every consumer's comment names the pinned minor in one
-            // or both of these forms; they must move together or the comment
-            // half-lies after a bump. The wide-range replacement leaves no caret
-            // behind, so the two passes never collide.
-            const next = line
-                .replace(/>=\s*\d+\.\d+(?:\.\d+)?\s*<\s*\d+\.\d+(?:\.\d+)?/g, wide)
-                .replace(/\^\d+\.\d+(?:\.\d+)?/g, caret);
+        if (commentLines.has(idx) && commentSubs.length) {
+            let next = line;
+            for (const sub of commentSubs) next = next.replace(sub.wide, targetWide).replace(sub.caret, targetCaret);
             if (next !== line) comments.push({ from: line.trim(), to: next.trim() });
             return next;
         }
