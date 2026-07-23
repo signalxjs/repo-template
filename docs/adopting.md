@@ -174,7 +174,7 @@ the fast path on:
    write`** — nothing else (`Metadata: Read` is added automatically).
 
    **There is no "Repository dispatch" permission.**
-   `POST /repos/{owner}/{repo}/dispatches` is gated on `Contents: write`, which is
+   `POST /repos/{owner}/{repo}/dispatches` requires `Contents: Read and write`, which is
    broader than the job needs and the narrowest GitHub offers for it (a GitHub App
    needs the same). Prefer a short expiry over hunting for a tighter scope — and
    note the expiry, since core's job swallows per-repo dispatch failures, so an
