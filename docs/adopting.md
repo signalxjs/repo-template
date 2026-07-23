@@ -167,8 +167,18 @@ For any repo that consumes sigx core (`@sigx/reactivity` et al.):
 sender lives in `signalxjs/core`'s `release.yml` (`notify-consumers` job). To turn
 the fast path on:
 
-1. Create a fine-grained PAT (or GitHub App token) scoped **`repository_dispatch:
-   write`** on every consumer repo under `signalxjs`.
+1. Create a fine-grained PAT at
+   <https://github.com/settings/personal-access-tokens/new> with **resource owner
+   `signalxjs`** (not a personal account, or the repos will not be listable),
+   *Only select repositories* → every consumer repo, and **`Contents: Read and
+   write`** — nothing else (`Metadata: Read` is added automatically).
+
+   **There is no "Repository dispatch" permission.**
+   `POST /repos/{owner}/{repo}/dispatches` is gated on `Contents: write`, which is
+   broader than the job needs and the narrowest GitHub offers for it (a GitHub App
+   needs the same). Prefer a short expiry over hunting for a tighter scope — and
+   note the expiry, since core's job swallows per-repo dispatch failures, so an
+   expired token degrades silently to the weekly cron.
 2. Store it as the **`ECOSYSTEM_DISPATCH_TOKEN`** secret **in the core repo**
    (`gh secret set ECOSYSTEM_DISPATCH_TOKEN -R signalxjs/core`).
 3. Ensure each consumer's `core-sync.yml` is on `main` (this template ships it) and
