@@ -55,6 +55,12 @@ const WORKSPACE_DIRS = ['packages', 'app', 'apps', 'examples'];
 /** Every package.json to inspect under `repoRoot`. */
 export function workspaceManifests(repoRoot) {
     const files = [];
+    // The ROOT manifest first. A single-package repo has no workspace dirs at all
+    // (adopting.md explicitly supports that shape), and a monorepo root can still
+    // declare a core dep directly — either way, skipping it would let inline pins
+    // through the guard entirely. `"catalog:"` resolves in the root manifest too.
+    const rootManifest = join(repoRoot, 'package.json');
+    if (existsSync(rootManifest)) files.push(rootManifest);
     for (const base of WORKSPACE_DIRS) {
         const dir = join(repoRoot, base);
         if (!existsSync(dir) || !statSync(dir).isDirectory()) continue;
