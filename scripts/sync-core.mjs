@@ -19,27 +19,18 @@
  * also live in the catalog. Formatting and comments are preserved (line-based
  * edit). It does NOT run install/build/test — CI (core-sync.yml) does that and
  * opens the PR; run those yourself when using it locally.
+ *
+ * Because it can ONLY rewrite catalog entries, it refuses to run in a repo whose
+ * core deps are pinned inline instead: there would be nothing for the walk to
+ * match, and reporting "already aligned" there is a false green that leaves the
+ * repo on the old core with no signal at all. Convert those to `"catalog:"` first.
  */
 
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-
-// The packages published from signalxjs/core. Only these are rewritten.
-// Keep in sync with SIGX_CORE_PACKAGES in @sigx/vite.
-const CORE_PACKAGES = new Set([
-    'sigx',
-    '@sigx/reactivity',
-    '@sigx/runtime-core',
-    '@sigx/runtime-dom',
-    '@sigx/server-renderer',
-    '@sigx/server',
-    '@sigx/ssr-islands',
-    '@sigx/resume',
-    '@sigx/cache',
-    '@sigx/vite',
-]);
+import { CORE_PACKAGES, findInlineCoreDeps, formatInlineCoreDeps } from './lib/core-deps.mjs';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 const wsPath = join(repoRoot, 'pnpm-workspace.yaml');
@@ -65,6 +56,26 @@ function resolveRange() {
 if (!existsSync(wsPath)) {
     console.error(`sync-core: no pnpm-workspace.yaml at ${wsPath}`);
     process.exit(2);
+}
+
+// Refuse to run against inline core pins. This script edits the catalog and
+// nothing else, so a repo whose core deps live in package.json has nothing for
+// the walk below to match — it would print "already aligned" and exit 0 while
+// leaving the repo on the old core. That false green is worse than no tooling:
+// core-sync.yml swallows it as success and opens no PR.
+const inline = findInlineCoreDeps(repoRoot);
+if (inline.length) {
+    console.error(
+        'sync-core: this repo pins core packages INLINE, outside the catalog:\n' +
+            formatInlineCoreDeps(inline)
+                .map((l) => '  - ' + l)
+                .join('\n') +
+            '\n\nsync:core can only rewrite catalog entries, so it cannot align this repo.' +
+            '\nAdd the packages above to the `catalog:` block of pnpm-workspace.yaml and' +
+            '\nreplace each specifier with "catalog:", then re-run. `pnpm verify:catalog`' +
+            '\nchecks the same thing on every CI run.',
+    );
+    process.exit(1);
 }
 
 const { range, display } = resolveRange();

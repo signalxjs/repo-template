@@ -32,6 +32,7 @@ Copy these from this template into the repo (keep the **verbatim** ones byte-for
 | `scripts/apply-branch-protection.mjs` | **verbatim** |
 | `scripts/sync-core.mjs` | **verbatim** (core catalog alignment) |
 | `scripts/check-catalog.mjs` | **verbatim** (`verify:catalog` guard) |
+| `scripts/lib/core-deps.mjs` | **verbatim** — the shared core-package list both of the above import. Copy it or neither script runs |
 | `CLAUDE.md` | **verbatim** |
 | `AGENTS.md` | template — edit the repo-specific sections |
 | `.github/workflows/*` | copy what applies (see “trimming” below) |
@@ -139,6 +140,19 @@ For any repo that consumes sigx core (`@sigx/reactivity` et al.):
    ```
    Then replace the version of every core dep in each package.json
    (`dependencies` / `devDependencies` / `peerDependencies`) with `"catalog:"`.
+
+   **Step 1 is not optional and cannot be skipped.** `sync:core` edits the catalog
+   and nothing else, so a repo whose core deps are still pinned inline has nothing
+   for it to rewrite. It refuses to run in that state and names each offending
+   specifier:
+
+   ```
+   sync-core: this repo pins core packages INLINE, outside the catalog:
+     - @acme/thing dependencies["@sigx/reactivity"] = "^0.12.0" (must be "catalog:")
+   ```
+
+   (It used to report "already aligned" and exit 0 there — a false green that
+   `core-sync.yml` swallowed as success while the repo sat on the old core.)
 2. Add the `sync:core` + `verify:catalog` scripts (shown above) and keep the
    **Verify catalog** step in `ci.yml`. Run `pnpm verify:catalog` locally to
    confirm it's green.

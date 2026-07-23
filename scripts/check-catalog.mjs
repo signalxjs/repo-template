@@ -8,42 +8,18 @@
  *
  * Wire into ci.yml. Generalises lynx's check-versions.js to the catalog model.
  */
-import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { CORE_PACKAGES, findInlineCoreDeps, formatInlineCoreDeps } from './lib/core-deps.mjs';
 
-const CORE_PACKAGES = new Set([
-    'sigx', '@sigx/reactivity', '@sigx/runtime-core', '@sigx/runtime-dom',
-    '@sigx/server-renderer', '@sigx/server', '@sigx/ssr-islands', '@sigx/resume',
-    '@sigx/cache', '@sigx/vite',
-]);
-const DEP_FIELDS = ['dependencies', 'devDependencies', 'peerDependencies', 'optionalDependencies'];
 const SINGLE_MINOR = /^\^\d+\.\d+\.0$/; // ^X.Y.0 — one minor
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 const errors = [];
 
 // 1. Every core dep in every package.json must be exactly "catalog:".
-function scanPkgDir(dir) {
-    for (const e of readdirSync(dir)) {
-        const p = join(dir, e);
-        if (!statSync(p).isDirectory()) continue;
-        const pj = join(p, 'package.json');
-        if (!existsSync(pj)) continue;
-        const pkg = JSON.parse(readFileSync(pj, 'utf8'));
-        for (const field of DEP_FIELDS) {
-            for (const [name, spec] of Object.entries(pkg[field] ?? {})) {
-                if (CORE_PACKAGES.has(name) && spec !== 'catalog:') {
-                    errors.push(`${pkg.name} ${field}["${name}"] = "${spec}" (must be "catalog:")`);
-                }
-            }
-        }
-    }
-}
-for (const base of ['packages', 'app', 'apps', 'examples']) {
-    const d = join(repoRoot, base);
-    if (existsSync(d)) scanPkgDir(d);
-}
+errors.push(...formatInlineCoreDeps(findInlineCoreDeps(repoRoot)));
 
 // 2. Catalog core entries must be single-minor caret. Parse pnpm-workspace.yaml
 //    leniently (the entries this cares about are simple `name: ^x.y.z` lines).
