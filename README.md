@@ -40,6 +40,7 @@ It captures the patterns first proven in
 | [`scripts/apply-branch-protection.mjs`](scripts/apply-branch-protection.mjs) | Applies the `main` ruleset via `gh api` | **Verbatim** (pass the repo) |
 | [`scripts/sync-core.mjs`](scripts/sync-core.mjs) | `pnpm sync:core` — aligns the `catalog:` core pins to a core version (`--check` drift guard) | **Verbatim** |
 | [`scripts/check-catalog.mjs`](scripts/check-catalog.mjs) | `pnpm verify:catalog` — guards the single-minor catalog invariant (CI + local) | **Verbatim** |
+| [`scripts/lib/core-deps.mjs`](scripts/lib/core-deps.mjs) | The core-package list + inline-pin scan the two scripts above share | **Verbatim** — copy it or neither runs |
 | [`.github/workflows/`](.github/workflows) | CI, bundle-size, release, release-drafter, dependabot auto-merge, core-sync | Mostly verbatim; trim per repo |
 | [`.github/`](.github) | CODEOWNERS, dependabot, PR + issue templates, SUPPORT | Edit owners, package lists |
 | `CONTRIBUTING.md`, `SECURITY.md`, `CODE_OF_CONDUCT.md` | Governance | Edit repo name/scope |
@@ -179,7 +180,8 @@ PR:
 | Piece | What it does |
 |---|---|
 | [`scripts/check-catalog.mjs`](scripts/check-catalog.mjs) (`pnpm verify:catalog`) | Fails CI if any package.json declares a core dep with an **inline** version instead of `"catalog:"`, or if a catalog core entry isn't a single-minor `^X.Y.0`. Wired into `ci.yml`. |
-| [`scripts/sync-core.mjs`](scripts/sync-core.mjs) (`pnpm sync:core [version]`) | Rewrites the catalog's **core** entries to `^X.Y.0` (siblings like `@sigx/router` are left alone). No arg = latest on npm. `--check` exits non-zero if a change *would* be made (drift guard). |
+| [`scripts/sync-core.mjs`](scripts/sync-core.mjs) (`pnpm sync:core [version]`) | Rewrites the catalog's **core** entries to `^X.Y.0` (siblings like `@sigx/router` are left alone). No arg = latest on npm. `--check` exits non-zero if a change *would* be made (drift guard). Refuses to run — non-zero, naming each specifier — in a repo whose core deps are still pinned inline, since it edits only the catalog and would otherwise report a false "already aligned". |
+| [`scripts/lib/core-deps.mjs`](scripts/lib/core-deps.mjs) | The single `CORE_PACKAGES` list and the shared package.json scan. **Keep it in sync with `corePackages` in core's [`docs/ecosystem.json`](https://github.com/signalxjs/core/blob/main/docs/ecosystem.json)** — core's CI fails when a newly published package is missing there, and that failure is the cue to update this list too. A core package absent from here gets neither the rewrite nor the guard, silently. |
 | [`.github/workflows/core-sync.yml`](.github/workflows/core-sync.yml) | Runs `sync:core`, then `install → build → typecheck → test → verify:catalog`, and only if all green opens/updates a **“chore: align with core”** PR. A red PR never appears: if a core release breaks this repo, the workflow fails loudly instead. |
 
 ### Closing the loop (core → consumers)
