@@ -41,8 +41,36 @@ export const CORE_PACKAGES = new Set([
 /** The dependency sections a core dep can hide in. */
 export const DEP_FIELDS = ['dependencies', 'devDependencies', 'peerDependencies', 'optionalDependencies'];
 
-/** Where workspace packages live, across the repo shapes in this org. */
+/**
+ * Where workspace packages live, across the repo shapes in this org.
+ *
+ * Each is checked BOTH as a container of packages (`packages/<name>/package.json`,
+ * the usual shape) and as a package itself (`app/package.json`) — `signalxjs/pulse`
+ * declares `- app` as a workspace entry, and scanning only one level down made its
+ * inline core pins invisible to `verify:catalog`. A guard that silently sees nothing
+ * is the failure this whole file exists to prevent.
+ */
 const WORKSPACE_DIRS = ['packages', 'app', 'apps', 'examples'];
+
+/** Every package.json to inspect under `repoRoot`. */
+export function workspaceManifests(repoRoot) {
+    const files = [];
+    for (const base of WORKSPACE_DIRS) {
+        const dir = join(repoRoot, base);
+        if (!existsSync(dir) || !statSync(dir).isDirectory()) continue;
+        // The directory may itself be a package.
+        const own = join(dir, 'package.json');
+        if (existsSync(own)) files.push(own);
+        // ...and/or a container of them.
+        for (const entry of readdirSync(dir)) {
+            const path = join(dir, entry);
+            if (!statSync(path).isDirectory()) continue;
+            const manifest = join(path, 'package.json');
+            if (existsSync(manifest)) files.push(manifest);
+        }
+    }
+    return files;
+}
 
 /**
  * Every core dep in the repo that is declared with a literal version instead of
@@ -59,20 +87,12 @@ const WORKSPACE_DIRS = ['packages', 'app', 'apps', 'examples'];
  */
 export function findInlineCoreDeps(repoRoot) {
     const found = [];
-    for (const base of WORKSPACE_DIRS) {
-        const dir = join(repoRoot, base);
-        if (!existsSync(dir)) continue;
-        for (const entry of readdirSync(dir)) {
-            const path = join(dir, entry);
-            if (!statSync(path).isDirectory()) continue;
-            const manifest = join(path, 'package.json');
-            if (!existsSync(manifest)) continue;
-            const pkg = JSON.parse(readFileSync(manifest, 'utf8'));
-            for (const field of DEP_FIELDS) {
-                for (const [dep, spec] of Object.entries(pkg[field] ?? {})) {
-                    if (CORE_PACKAGES.has(dep) && spec !== 'catalog:') {
-                        found.push({ pkg: pkg.name ?? `${base}/${entry}`, field, dep, spec });
-                    }
+    for (const manifest of workspaceManifests(repoRoot)) {
+        const pkg = JSON.parse(readFileSync(manifest, 'utf8'));
+        for (const field of DEP_FIELDS) {
+            for (const [dep, spec] of Object.entries(pkg[field] ?? {})) {
+                if (CORE_PACKAGES.has(dep) && spec !== 'catalog:') {
+                    found.push({ file: manifest, pkg: pkg.name ?? manifest, field, dep, spec });
                 }
             }
         }
