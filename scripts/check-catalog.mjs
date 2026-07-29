@@ -118,6 +118,7 @@ export function main(argv = []) {
 }
 
 // Only run when invoked directly, so the exports above stay importable in tests.
-if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
+// Same guard shape as sync-core.mjs — the two are read side by side.
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
     process.exit(main(process.argv.slice(2)));
 }
