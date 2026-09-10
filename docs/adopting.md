@@ -141,6 +141,24 @@ For any repo that consumes sigx core (`@sigx/reactivity` et al.):
    Then replace the version of every core dep in each package.json
    (`dependencies` / `devDependencies` / `peerDependencies`) with `"catalog:"`.
 
+   **A publishable package peers on core** (core 1.0, rfc-1.0 §3.3): the app
+   that installs your library owns the single copy of the runtime, so the
+   library declares each core *singleton* it needs (`sigx`, `@sigx/reactivity`,
+   `@sigx/runtime-core`, the strategy and server packs) in `peerDependencies`
+   at the range the catalog pin derives — `^1.0.0` once core is on 1.x, the
+   catalog's own `^0.Y.0` while it is on 0.x — with a `devDependencies:
+   "catalog:"` twin for the repo's own build and tests:
+   ```json
+   "peerDependencies": { "sigx": "^1.0.0" },
+   "devDependencies":  { "sigx": "catalog:", "@sigx/vite": "catalog:" }
+   ```
+   You do not write this by hand: `pnpm sync:core` moves a `"catalog:"`
+   singleton from `dependencies` into that shape and re-pins the peers on a
+   major bump; `pnpm verify:catalog` fails on a publishable package that
+   departs from it. `private` manifests (the root, apps, examples) keep core in
+   `dependencies` as `"catalog:"`; `@sigx/serialize`, `@sigx/vite` and the
+   deploy adapters are not singletons and stay `"catalog:"` wherever they are.
+
    An explanatory comment directly above the `catalog:` block is encouraged. If
    it names the pinned minor as `^X.Y.0` and/or the explicit `>=X.Y.0 <X.(Y+1).0`
    range, `sync:core` refreshes those tokens in the same pass as the pins — the

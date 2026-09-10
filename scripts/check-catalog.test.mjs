@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { checkCatalog, normalizeExpected } from './check-catalog.mjs';
+import { checkCatalog, normalizeExpected, catalogPeerRange } from './check-catalog.mjs';
 
 // The gap this covers: checks 1 and 2 are structural, so they pass on a catalog
 // still pinned to the PREVIOUS core minor — exactly what a `sync:core` that
@@ -28,10 +28,19 @@ test('normalizeExpected accepts X.Y, X.Y.Z and a leading caret', () => {
     assert.equal(normalizeExpected(' 1.0 '), '^1.0.0');
 });
 
+test('normalizeExpected accepts a prerelease of a NEW MAJOR, pinned exactly', () => {
+    // `^1.0.0` does not resolve `1.0.0-rc.0`; the exact caret is the only pin
+    // an rc alignment can use, and it keeps matching rc.1 and 1.0.0 itself.
+    assert.equal(normalizeExpected('1.0.0-rc.0'), '^1.0.0-rc.0');
+    assert.equal(normalizeExpected('^2.0.0-beta.1'), '^2.0.0-beta.1');
+});
+
 test('normalizeExpected rejects a non-version instead of degrading silently', () => {
     // Returning null matters: treating garbage as "no expectation" would report
     // OK on a stale catalog, which is the bug this whole check exists to close.
-    for (const bad of ['latest', 'v0.14', '0', '', 'main', '0.14.0-rc.1']) {
+    // A prerelease of a later minor (0.14.0-rc.1) is not a pin either —
+    // consumers align to releases; the rc case exists only for a new major.
+    for (const bad of ['latest', 'v0.14', '0', '', 'main', '0.14.0-rc.1', '1.1.0-beta.0']) {
         assert.equal(normalizeExpected(bad), null, `${JSON.stringify(bad)} should not parse`);
     }
 });
@@ -45,6 +54,14 @@ test('passes when the catalog matches the expected version', () => {
     assert.deepEqual(checkCatalog(ws('0.14.0'), '^0.14.0'), []);
 });
 
+test('the exact prerelease caret of a new major is a valid pin; a later-minor prerelease is not', () => {
+    assert.deepEqual(checkCatalog(ws('1.0.0-rc.0')), []);
+    assert.deepEqual(checkCatalog(ws('1.0.0-rc.0'), '^1.0.0-rc.0'), []);
+    const errors = checkCatalog(ws('1.1.0-beta.0'));
+    assert.equal(errors.length, 3);
+    assert.match(errors[0], /must be single-minor/);
+});
+
 test('FAILS on a stale catalog the structural check calls fine', () => {
     const errors = checkCatalog(ws('0.13.0'), '^0.14.0');
     assert.equal(errors.length, 3, 'every core entry should be reported, not just the first');
@@ -52,6 +69,9 @@ test('FAILS on a stale catalog the structural check calls fine', () => {
     assert.match(errors[0], /\^0\.13\.0/, 'names what was found');
     assert.match(errors[0], /expected \^0\.14\.0/, 'names what was wanted');
     assert.match(errors[0], /pnpm sync:core 0\.14/, 'names the remedy, with the minor only');
+    // For an rc the remedy names the exact version, since the minor alone cannot reach it.
+    const [pre] = checkCatalog(ws('0.15.0'), '^1.0.0-rc.0');
+    assert.match(pre, /run `pnpm sync:core 1\.0\.0-rc\.0`/);
 });
 
 test('a wide range is still reported as wide, not as a version mismatch', () => {
@@ -125,4 +145,15 @@ test('handles single-quoted and bare values, as terminal writes them', () => {
     ].join('\n');
     const errors = checkCatalog(src, '^0.14.0');
     assert.equal(errors.length, 2, 'quoting style must not hide an entry');
+});
+
+test('catalogPeerRange derives the peer range a library must declare from the first core pin', () => {
+    // 0.x: a caret is one minor, so the pin IS the range; 1.x+: wide; an rc of
+    // X.0.0: exact. A catalog with no core entry (siblings only) derives nothing,
+    // and the manifest check then judges peers by shape alone.
+    assert.equal(catalogPeerRange(ws('0.15.0')), '^0.15.0');
+    assert.equal(catalogPeerRange(ws('1.4.0')), '^1.0.0');
+    assert.equal(catalogPeerRange(ws('1.0.0-rc.0')), '^1.0.0-rc.0');
+    assert.equal(catalogPeerRange('catalog:\n  "@sigx/router": ^0.5.0\n'), null);
+    assert.equal(catalogPeerRange(''), null);
 });
