@@ -276,7 +276,11 @@ export function findInlineCoreDeps(repoRoot, peerRange = null) {
     return found;
 }
 
-/** Render `findInlineCoreDeps` output as bare report lines; callers add their own bullet. */
+/**
+ * Render `findInlineCoreDeps` output — every departure from the shape, the
+ * `inline` and the `shape` kind alike — as bare report lines, each naming what
+ * the specifier must be; callers add their own bullet.
+ */
 export function formatInlineCoreDeps(hits) {
     return hits.map((h) => `${h.pkg} ${h.field}["${h.dep}"] = "${h.spec}" (must be ${h.must})`);
 }

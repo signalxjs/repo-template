@@ -100,7 +100,7 @@ function forEachCatalogEntry(lines, cb) {
  * so both the CLI below and the unit tests drive the same code.
  *
  * @param {string} src   the pnpm-workspace.yaml contents
- * @param {string} range the target single-minor caret, `^X.Y.0`
+ * @param {string} range the target caret: single-minor `^X.Y.0`, or the exact `^X.0.0-<pre>` of a new major's prerelease
  * @returns {{ text: string, pins: {name:string,from:string,to:string}[], comments: {from:string,to:string}[] }}
  */
 export function alignCatalog(src, range) {
