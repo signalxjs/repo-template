@@ -114,7 +114,13 @@ export function alignCatalog(src, range) {
     const tMin = Number(rm[2]);
     const tPre = rm[3] ?? '';
     const targetCaret = `^${tMaj}.${tMin}.0${tPre}`; // == range, rebuilt from parts for clarity
-    const targetWide = `>=${tMaj}.${tMin}.0${tPre} <${tMaj}.${tMin + 1}.0`; // the equivalent explicit range
+    // The equivalent explicit range. A caret is one MINOR only while the major
+    // is 0 (`^0.13.0` == `>=0.13.0 <0.14.0`); from 1.0 it is the whole major
+    // (`^1.3.0` == `>=1.3.0 <2.0.0`, and so is `^1.0.0-rc.0`) — which is the
+    // point of 1.0: additive minors, one copy across the line.
+    const targetWide = tMaj === 0
+        ? `>=0.${tMin}.0 <0.${tMin + 1}.0`
+        : `>=${tMaj}.${tMin}.0${tPre} <${tMaj + 1}.0.0`;
 
     const lines = src.split('\n');
 
@@ -139,18 +145,27 @@ export function alignCatalog(src, range) {
     const seenMinor = new Set();
     forEachCatalogEntry(lines, (name, ver) => {
         if (!CORE_PACKAGES.has(name)) return;
-        const vm = /(\d+)\.(\d+)/.exec(ver); // lower bound of a caret or a wide range
+        // Lower bound of a caret or a wide range, prerelease suffix included: an
+        // rc pin (`^1.0.0-rc.0`) is a DIFFERENT pin from `^1.0.0` and must be
+        // rewritten when 1.0.0 ships, although both are major 1 minor 0.
+        const vm = /(\d+)\.(\d+)(?:\.\d+)?(-[0-9A-Za-z.-]+)?/.exec(ver);
         if (!vm) return;
         const maj = Number(vm[1]);
         const min = Number(vm[2]);
-        const key = `${maj}.${min}`;
-        if ((maj === tMaj && min === tMin) || seenMinor.has(key)) return; // target, or already collected
+        const pre = vm[3] ?? '';
+        const key = `${maj}.${min}${pre}`;
+        if ((maj === tMaj && min === tMin && pre === tPre) || seenMinor.has(key)) return; // target, or already collected
         seenMinor.add(key);
         // Explicit range first (it contains no caret, so it can't collide with the
         // caret pass); then the bare caret. Both forms name the same pinned minor.
+        // The upper bound is the next minor on 0.x and the next major from 1.0 —
+        // both are matched, so a comment written for either era is rewritten.
         commentSubs.push({
-            wide: new RegExp(`>=\\s*${reEscape(key)}(?:\\.\\d+)?\\s*<\\s*${maj}\\.${min + 1}(?:\\.\\d+)?`, 'g'),
-            caret: new RegExp(`\\^${reEscape(key)}(?:\\.\\d+)?`, 'g'),
+            wide: new RegExp(
+                `>=\\s*${reEscape(`${maj}.${min}`)}(?:\\.\\d+)?${pre ? reEscape(pre) : ''}\\s*<\\s*(?:${maj}\\.${min + 1}|${maj + 1}\\.0)(?:\\.\\d+)?`,
+                'g',
+            ),
+            caret: new RegExp(`\\^${reEscape(`${maj}.${min}`)}(?:\\.\\d+)?${pre ? reEscape(pre) : ''}`, 'g'),
         });
     });
 

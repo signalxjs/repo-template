@@ -9,8 +9,10 @@
  *      without the `devDependencies: "catalog:"` twin (core 1.0's "the app owns
  *      the copy", rfc-1.0 §3.3 — #53),
  *   2. a `catalog:` core entry is NOT a single-minor caret `^X.Y.0` — or, while
- *      aligned to a prerelease of a new major, the exact caret `^X.0.0-rc.N`
- *      (a wider range like `>=0.11 <0.13` re-opens the two-copies hazard), or
+ *      aligned to a prerelease of a new major, the exact caret `^X.0.0-<pre>`
+ *      (`^1.0.0-rc.0`; any prerelease suffix, the rule is the position not the
+ *      spelling — a wider range like `>=0.11 <0.13` re-opens the two-copies
+ *      hazard), or
  *   3. an expected version was given and a core entry does not match it.
  *
  * Checks 1 and 2 are STRUCTURAL — they say the catalog is *a* single minor, not
@@ -94,7 +96,7 @@ export function checkCatalog(ws, want = null) {
     const errors = [];
     for (const { name, ver } of catalogCoreEntries(ws)) {
         if (!SINGLE_MINOR.test(ver)) {
-            errors.push(`catalog["${name}"] = "${ver}" (must be single-minor ^X.Y.0 to keep one copy hoisted)`);
+            errors.push(`catalog["${name}"] = "${ver}" (must be single-minor ^X.Y.0 — or ^X.0.0-<pre> for a new major's prerelease — to keep one copy hoisted)`);
         } else if (want && ver !== want) {
             // Structurally fine but the WRONG minor — the failure mode check 2
             // cannot see. Name the remedy: this is what a missed sync looks like.

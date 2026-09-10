@@ -140,7 +140,11 @@ test('a MAJOR bump moves the old ^0.x correctly (keyed on the current pin, not t
     ].join('\n');
 
     const { text } = alignCatalog(src, '^1.0.0');
-    assert.match(text, /`\^1\.0\.0` == `>=1\.0\.0 <1\.1\.0`/, 'comment moved to the new major');
+    // From 1.0 a caret spans the MAJOR: ^1.0.0 == >=1.0.0 <2.0.0, not <1.1.0.
+    assert.match(text, /`\^1\.0\.0` == `>=1\.0\.0 <2\.0\.0`/, 'comment moved to the new major');
+    // …and the next bump on the 1.x line still finds and rewrites that range.
+    const next = alignCatalog(text, '^1.1.0');
+    assert.match(next.text, /`\^1\.1\.0` == `>=1\.1\.0 <2\.0\.0`/, 'a 1.x comment is rewritten on the next minor');
     assert.match(text, /"@sigx\/reactivity": \^1\.0\.0/);
 });
 
@@ -200,7 +204,11 @@ test('a prerelease of a new major pins exactly — the only caret that resolves 
     assert.deepEqual(pins, [{ name: 'sigx', from: '^0.15.0', to: '^1.0.0-rc.0' }]);
     assert.match(text, /sigx: \^1\.0\.0-rc\.0/);
     assert.match(text, /"@sigx\/router": \^0\.5\.0/, 'siblings untouched');
-    assert.match(text, /`\^1\.0\.0-rc\.0` == `>=1\.0\.0-rc\.0 <1\.1\.0`/, 'the comment names the exact pin');
+    assert.match(text, /`\^1\.0\.0-rc\.0` == `>=1\.0\.0-rc\.0 <2\.0\.0`/, 'the comment names the exact pin, major-wide');
+    // The rc pin is itself rewritten once 1.0.0 ships.
+    const stable = alignCatalog(text, '^1.0.0');
+    assert.match(stable.text, /sigx: \^1\.0\.0$/m);
+    assert.match(stable.text, /`\^1\.0\.0` == `>=1\.0\.0 <2\.0\.0`/);
     // A prerelease of a later minor is not a pin.
     assert.throws(() => alignCatalog(src, '^1.1.0-beta.0'), /single-minor caret/);
 });
