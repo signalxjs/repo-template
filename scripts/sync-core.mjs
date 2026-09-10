@@ -11,6 +11,7 @@
  *   node scripts/sync-core.mjs            # align to the latest published core
  *   node scripts/sync-core.mjs 0.13.0     # align to an explicit version
  *   node scripts/sync-core.mjs 0.13       # minor is enough; patch is ignored
+ *   node scripts/sync-core.mjs 1.0.0-rc.0 # a prerelease of a new major pins exactly
  *   node scripts/sync-core.mjs --check     # exit 1 if a change WOULD be made (CI drift guard)
  *
  * It rewrites only CORE packages (published from signalxjs/core) to `^X.Y.0`
@@ -19,6 +20,14 @@
  * also live in the catalog. Formatting is preserved (line-based edit). It does
  * NOT run install/build/test — CI (core-sync.yml) does that and opens the PR;
  * run those yourself when using it locally.
+ *
+ * It also writes THE SHAPE into every publishable package's manifest (core 1.0,
+ * rfc-1.0 §3.3 — #53; the rules live in `lib/core-deps.mjs`): a core singleton
+ * the library carries in `dependencies` moves to `peerDependencies` at the
+ * peer range the catalog pin derives (`^X.0.0` on 1.x+, the catalog's own
+ * `^0.Y.0` on 0.x, the exact caret while aligned to an rc) with a
+ * `devDependencies: "catalog:"` twin, and an existing peer is re-pinned on a
+ * major bump. The app that installs the library owns the single copy.
  *
  * It also rewrites the explanatory COMMENT that sits directly above the
  * `catalog:` block — the `# … ^X.Y.0 == >=X.Y.0 <X.(Y+1).0 …` prose that names
@@ -40,7 +49,14 @@ import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { CORE_PACKAGES, findInlineCoreDeps, formatInlineCoreDeps } from './lib/core-deps.mjs';
+import {
+    CORE_PACKAGES,
+    alignManifest,
+    findInlineCoreDeps,
+    formatInlineCoreDeps,
+    peerRangeFor,
+    workspaceManifests,
+} from './lib/core-deps.mjs';
 
 // Match catalog entries only while inside a `catalog:`/`catalogs:` block.
 // A catalog entry line looks like:  <indent>"@sigx/reactivity": ^0.12.0
@@ -88,12 +104,17 @@ function forEachCatalogEntry(lines, cb) {
  * @returns {{ text: string, pins: {name:string,from:string,to:string}[], comments: {from:string,to:string}[] }}
  */
 export function alignCatalog(src, range) {
-    const rm = /^\^(\d+)\.(\d+)\.0$/.exec(range);
-    if (!rm) throw new Error(`alignCatalog: range must be a single-minor caret ^X.Y.0, got "${range}"`);
+    // ^X.Y.0, or — for a prerelease of a new major, the only caret that resolves
+    // it — ^X.0.0-<pre>; check-catalog.mjs's SINGLE_MINOR accepts the same two.
+    const rm = /^\^(\d+)\.(\d+)\.0(-[0-9A-Za-z.-]+)?$/.exec(range);
+    if (!rm || (rm[3] && rm[2] !== '0')) {
+        throw new Error(`alignCatalog: range must be a single-minor caret ^X.Y.0 (or ^X.0.0-<pre>), got "${range}"`);
+    }
     const tMaj = Number(rm[1]);
     const tMin = Number(rm[2]);
-    const targetCaret = `^${tMaj}.${tMin}.0`; // == range, rebuilt from parts for clarity
-    const targetWide = `>=${tMaj}.${tMin}.0 <${tMaj}.${tMin + 1}.0`; // the equivalent explicit range
+    const tPre = rm[3] ?? '';
+    const targetCaret = `^${tMaj}.${tMin}.0${tPre}`; // == range, rebuilt from parts for clarity
+    const targetWide = `>=${tMaj}.${tMin}.0${tPre} <${tMaj}.${tMin + 1}.0`; // the equivalent explicit range
 
     const lines = src.split('\n');
 
@@ -200,12 +221,40 @@ function resolveRange(versionArg) {
             process.exit(2);
         }
     }
+    // A prerelease of a NEW MAJOR (1.0.0-rc.0) pins exactly: `^1.0.0` would not
+    // resolve it, and `^1.0.0-rc.0` keeps matching rc.1 and 1.0.0 itself. Any
+    // other prerelease (1.1.0-beta.0, 0.16.0-rc.0) aligns to its minor as a
+    // release would — consumers align to releases; the rc case exists only
+    // because a major's first release has no stable version to pin.
+    const pre = /^v?(\d+)\.0\.0(-[0-9A-Za-z.-]+)$/.exec(v);
+    if (pre) return { range: `^${pre[1]}.0.0${pre[2]}`, display: `${pre[1]}.0.0${pre[2]}` };
     const m = /^v?(\d+)\.(\d+)/.exec(v);
     if (!m) {
         console.error(`sync-core: cannot parse a version from "${v}"`);
         process.exit(2);
     }
     return { range: `^${m[1]}.${m[2]}.0`, display: `${m[1]}.${m[2]}` };
+}
+
+/**
+ * Rewrite every publishable manifest under `repoRoot` to the shape for
+ * `peerRange` (`alignManifest`), preserving each file's indentation. Returns
+ * the change lines; writes nothing when `dryRun`.
+ */
+export function alignManifests(repoRoot, peerRange, { dryRun = false } = {}) {
+    const changes = [];
+    for (const file of workspaceManifests(repoRoot)) {
+        const src = readFileSync(file, 'utf8');
+        const pkg = JSON.parse(src);
+        const result = alignManifest(pkg, peerRange);
+        if (result.changes.length === 0) continue;
+        changes.push(...result.changes);
+        if (dryRun) continue;
+        const indent = /^(\s+)"/m.exec(src)?.[1] ?? '  ';
+        const eol = src.includes('\r\n') ? '\r\n' : '\n';
+        writeFileSync(file, (JSON.stringify(result.pkg, null, indent) + '\n').replace(/\n/g, eol));
+    }
+    return changes;
 }
 
 /** CLI entry point — all the I/O and process-exit side effects live here. */
@@ -222,12 +271,16 @@ function main() {
         process.exit(2);
     }
 
-    // Refuse to run against inline core pins. This script edits the catalog and
-    // nothing else, so a repo whose core deps live in package.json has nothing for
+    // Refuse to run against INLINE core pins — a literal version where "catalog:"
+    // is required. This script aligns the catalog and moves "catalog:" deps
+    // between fields; it will not guess which catalog entry a hand-written
+    // `^0.12.0` meant, and a repo whose core deps are all inline has nothing for
     // the walk below to match — it would print "already aligned" and exit 0 while
     // leaving the repo on the old core. That false green is worse than no tooling:
-    // core-sync.yml swallows it as success and opens no PR.
-    const inline = findInlineCoreDeps(repoRoot);
+    // core-sync.yml swallows it as success and opens no PR. (Shape drift — a
+    // singleton still in `dependencies`, a peer at the old range — is what the
+    // manifest pass below fixes, so it is not refused here.)
+    const inline = findInlineCoreDeps(repoRoot).filter((h) => h.kind === 'inline');
     if (inline.length) {
         console.error(
             'sync-core: this repo pins core packages INLINE, outside the catalog:\n' +
@@ -245,23 +298,27 @@ function main() {
     const { range, display } = resolveRange(versionArg);
     const src = readFileSync(wsPath, 'utf8');
     const { text, pins, comments } = alignCatalog(src, range);
+    // The manifest pass is a dry run first: report everything, then write both.
+    const manifests = alignManifests(repoRoot, peerRangeFor(range), { dryRun: true });
 
-    if (pins.length === 0 && comments.length === 0) {
-        console.log(`sync-core: catalog already aligned to core ${display} (no change).`);
+    if (pins.length === 0 && comments.length === 0 && manifests.length === 0) {
+        console.log(`sync-core: catalog and manifests already aligned to core ${display} (no change).`);
         process.exit(0);
     }
 
-    console.log(`sync-core: align catalog to core ${display}:`);
+    console.log(`sync-core: align to core ${display}:`);
     for (const c of pins) console.log(`  ${c.name}: ${c.from} -> ${c.to}`);
     for (const c of comments) console.log(`  comment: ${c.from} -> ${c.to}`);
+    for (const c of manifests) console.log(`  ${c}`);
 
     if (checkOnly) {
         console.error('sync-core: --check found drift (see above). Run without --check to apply.');
         process.exit(1);
     }
 
-    writeFileSync(wsPath, text);
-    console.log(`\nsync-core: wrote ${wsPath}. Next: pnpm install && pnpm build && pnpm typecheck && pnpm test`);
+    if (pins.length || comments.length) writeFileSync(wsPath, text);
+    alignManifests(repoRoot, peerRangeFor(range));
+    console.log(`\nsync-core: wrote ${wsPath}${manifests.length ? ' and the package manifests above' : ''}. Next: pnpm install && pnpm build && pnpm typecheck && pnpm test`);
 }
 
 // Run the CLI only when executed directly, not when imported by a test.

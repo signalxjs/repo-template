@@ -1,6 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { alignCatalog } from './sync-core.mjs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { alignCatalog, alignManifests } from './sync-core.mjs';
 
 // The comment formats below are copied verbatim from real consumer repos
 // (i18n/pulse, terminal, router, store, use, monaco-editor) — the exact prose
@@ -183,4 +186,63 @@ test('handles the minor rollover in the explicit range (0.13 -> <0.14.0)', () =>
 
 test('rejects a range that is not a single-minor caret', () => {
     assert.throws(() => alignCatalog('catalog:\n  sigx: ^0.13.0', '>=0.13.0 <0.14.0'), /single-minor caret/);
+});
+
+test('a prerelease of a new major pins exactly — the only caret that resolves an rc', () => {
+    const src = [
+        '# `^0.15.0` == `>=0.15.0 <0.16.0` (ONE minor).',
+        'catalog:',
+        '  sigx: ^0.15.0',
+        '  "@sigx/router": ^0.5.0',
+        '',
+    ].join('\n');
+    const { text, pins } = alignCatalog(src, '^1.0.0-rc.0');
+    assert.deepEqual(pins, [{ name: 'sigx', from: '^0.15.0', to: '^1.0.0-rc.0' }]);
+    assert.match(text, /sigx: \^1\.0\.0-rc\.0/);
+    assert.match(text, /"@sigx\/router": \^0\.5\.0/, 'siblings untouched');
+    assert.match(text, /`\^1\.0\.0-rc\.0` == `>=1\.0\.0-rc\.0 <1\.1\.0`/, 'the comment names the exact pin');
+    // A prerelease of a later minor is not a pin.
+    assert.throws(() => alignCatalog(src, '^1.1.0-beta.0'), /single-minor caret/);
+});
+
+test("alignManifests writes the peer shape into publishable packages only, keeping each file's indent", () => {
+    const root = mkdtempSync(join(tmpdir(), 'sync-core-'));
+    try {
+        mkdirSync(join(root, 'packages', 'lib'), { recursive: true });
+        mkdirSync(join(root, 'packages', 'app'), { recursive: true });
+        writeFileSync(join(root, 'package.json'), JSON.stringify({ name: 'root', private: true, devDependencies: { '@sigx/vite': 'catalog:' } }, null, 2) + '\n');
+        writeFileSync(
+            join(root, 'packages', 'lib', 'package.json'),
+            JSON.stringify({ name: '@acme/lib', version: '1.0.0', dependencies: { sigx: 'catalog:', '@sigx/serialize': 'catalog:' }, devDependencies: { '@sigx/vite': 'catalog:' } }, null, 4) + '\n',
+        );
+        writeFileSync(
+            join(root, 'packages', 'app', 'package.json'),
+            JSON.stringify({ name: 'app', private: true, dependencies: { sigx: 'catalog:' } }, null, 2) + '\n',
+        );
+
+        const dry = alignManifests(root, '^1.0.0', { dryRun: true });
+        assert.equal(dry.length, 1);
+        assert.match(dry[0], /@acme\/lib: sigx dependencies "catalog:" -> peerDependencies "\^1\.0\.0"/);
+        // A dry run wrote nothing.
+        assert.match(readFileSync(join(root, 'packages', 'lib', 'package.json'), 'utf8'), /"dependencies": \{\n\s+"sigx": "catalog:"/);
+
+        const wet = alignManifests(root, '^1.0.0');
+        assert.deepEqual(wet, dry);
+        const lib = readFileSync(join(root, 'packages', 'lib', 'package.json'), 'utf8');
+        assert.match(lib, /^    "peerDependencies": \{$/m, 'four-space indent preserved');
+        const parsed = JSON.parse(lib);
+        assert.deepEqual(parsed.dependencies, { '@sigx/serialize': 'catalog:' });
+        assert.deepEqual(parsed.peerDependencies, { sigx: '^1.0.0' });
+        assert.deepEqual(parsed.devDependencies, { '@sigx/vite': 'catalog:', sigx: 'catalog:' });
+        assert.deepEqual(Object.keys(parsed), ['name', 'version', 'dependencies', 'peerDependencies', 'devDependencies']);
+
+        // Private manifests are left exactly as they were.
+        assert.deepEqual(JSON.parse(readFileSync(join(root, 'packages', 'app', 'package.json'), 'utf8')).dependencies, { sigx: 'catalog:' });
+        assert.deepEqual(JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).devDependencies, { '@sigx/vite': 'catalog:' });
+
+        // Idempotent.
+        assert.deepEqual(alignManifests(root, '^1.0.0', { dryRun: true }), []);
+    } finally {
+        rmSync(root, { recursive: true, force: true });
+    }
 });
