@@ -123,7 +123,10 @@ lines aren't tested fails the `codecov/patch` check. To turn it on:
 - `core-sync.yml` — keep for any repo that consumes sigx core. It needs the
   `catalog:` block set up (below) and `verify:catalog` wired into `ci.yml`. Works
   standalone via the weekly cron + manual dispatch; the instant `core-released`
-  path also needs the core-side token (below).
+  path also needs the core-side token (below). Don't trim its manifest path
+  list to your layout: a "Collect PR paths" step filters it to the paths that
+  exist before `create-pull-request` runs (a pathspec matching nothing used to
+  abort the PR step — #55).
 - `release-drafter.yml`, `dependabot-automerge.yml` — keep for any repo.
 
 ### Wire up core catalog alignment
