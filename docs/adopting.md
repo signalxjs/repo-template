@@ -121,7 +121,8 @@ lines aren't tested fails the `codecov/patch` check. To turn it on:
 - `ci.yml` — keep always. Don't use Codecov? Drop the `coverage` job *and*
   `codecov.yml`. Drop `verify-pack` if you don't publish. Keep the
   `merge_group` trigger: the merge queue needs it to run the required checks.
-- `bundle-size.yml` — keep only if you ship a size-limited bundle.
+- `bundle-size.yml` + `bundle-size-queue.yml` — keep both only if you ship a
+  size-limited bundle. The queue workflow reports `size` on merge-queue refs.
 - `release.yml` — keep only if you publish to npm; needs `scripts/publish.js` +
   trusted publishing configured on npmjs.com. See its header comment.
 - `core-sync.yml` — keep for any repo that consumes sigx core. It needs the

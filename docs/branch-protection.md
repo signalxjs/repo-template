@@ -67,8 +67,10 @@ waits for every required check to report there. If a workflow that produces a
 required check lacks the `merge_group:` trigger, queued PRs wait on checks
 that never run until the queue times out (`signalxjs/core#336`). So:
 
-- `ci.yml` and `bundle-size.yml` in this template trigger on `merge_group`. If
-  you add a workflow whose check you require, give it the trigger too.
+- `ci.yml` triggers on `merge_group`, and `bundle-size-queue.yml` runs the
+  `size` check there with read-only permissions (`bundle-size.yml` is PR-only,
+  since it comments on the PR). If you add a workflow whose check you
+  require, give it the trigger too.
 - Jobs that are *not* required can skip the queue run with
   `if: github.event_name != 'merge_group'` (the template's `coverage` does).
   They already ran on the PR. If you later require one, drop its guard in the
