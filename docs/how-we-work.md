@@ -58,8 +58,10 @@ may skip the issue (`CONTRIBUTING.md`), but not the PR/review/worktree.
 - **PR referencing the issue** (`Closes #N`) so it auto-closes on merge, with
   **`@copilot` as reviewer**. Don't merge before Copilot has reviewed; address
   every actionable comment with follow-up commits.
-- **Merge yourself** once review is resolved and CI is green: squash, delete the
-  branch, `pnpm wt rm` the worktree.
+- **Merge yourself** once review is resolved (threads too) and CI is green:
+  `gh pr merge --squash --auto` puts the PR in `main`'s merge queue, which
+  tests it against the latest `main`, squash-merges it and deletes the branch.
+  Then `pnpm wt rm` the worktree.
 
 The full commands (including the `gh api` fallback when `@copilot` won't resolve)
 are in [`AGENTS.md`](../AGENTS.md).
@@ -70,8 +72,8 @@ review step a non-negotiable part of the loop rather than an afterthought.
 
 ## 3. `main` is protected
 
-Direct pushes are blocked; PR + review + green CI + squash-only are enforced by a
-ruleset applied as code. See [branch-protection.md](branch-protection.md). This
+Direct pushes are blocked; PR + review + resolved threads + green CI +
+squash-only through a merge queue are enforced by a ruleset applied as code. See [branch-protection.md](branch-protection.md). This
 is what makes “merge it yourself once it's green” safe — the rules, not
 discipline, prevent a bad merge.
 

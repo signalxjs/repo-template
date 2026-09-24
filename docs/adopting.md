@@ -87,7 +87,8 @@ Then, file by file:
 - [ ] **`.github/ISSUE_TEMPLATE/bug_report.yml` + `feature_request.yml`** —
       fill the package dropdowns, or delete them for a single package.
 - [ ] **`.size-limit.json`** — set real dist paths and limits, or delete the
-      file and `bundle-size.yml` if you don’t ship a bundle.
+      file, `bundle-size.yml` and `bundle-size-queue.yml` if you don’t ship
+      a bundle.
 - [ ] **`SECURITY.md`** — set the supported-versions line.
 - [ ] **`package.json`** — `name`, `description`, `repository`, plus `lint` /
       `typecheck` / `build` / `test` / `size` scripts that `AGENTS.md` and CI call.
@@ -111,13 +112,18 @@ lines aren't tested fails the `codecov/patch` check. To turn it on:
      --checks "test (ubuntu-latest, 22); verify-pack; codecov/patch"
    ```
    (`codecov.yml` keeps `codecov/project` informational, so only the patch gate
-   blocks.)
+   blocks.) `main` merges through a merge queue. Before requiring the patch
+   gate, drop the `merge_group` guard on `coverage` and confirm the gate
+   reports on a queue ref. See
+   [branch-protection.md](branch-protection.md#every-required-check-must-run-on-merge_group).
 
 ### Trimming workflows per repo
 
 - `ci.yml` — keep always. Don't use Codecov? Drop the `coverage` job *and*
-  `codecov.yml`. Drop `verify-pack` if you don't publish.
-- `bundle-size.yml` — keep only if you ship a size-limited bundle.
+  `codecov.yml`. Drop `verify-pack` if you don't publish. Keep the
+  `merge_group` trigger: the merge queue needs it to run the required checks.
+- `bundle-size.yml` + `bundle-size-queue.yml` — keep both only if you ship a
+  size-limited bundle. The queue workflow reports `size` on merge-queue refs.
 - `release.yml` — keep only if you publish to npm; needs `scripts/publish.js` +
   trusted publishing configured on npmjs.com. See its header comment.
 - `core-sync.yml` — keep for any repo that consumes sigx core. It needs the

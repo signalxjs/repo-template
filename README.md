@@ -80,12 +80,13 @@ optional for anyone.
    ```
 5. **Wait for the review, then fix.** Don’t merge before Copilot has reviewed.
    Address every actionable comment with follow-up commits; re-request review
-   until there’s no remaining feedback.
-6. **Merge it yourself** once review is resolved **and** CI is green:
+   until there’s no remaining feedback, then resolve every review thread (the
+   ruleset blocks merging while one is open).
+6. **Queue the merge yourself** once review is resolved **and** CI is green:
    ```sh
    gh pr checks <pr>                          # all green first
-   gh pr merge <pr> --squash --delete-branch
-   pnpm wt rm <name>                          # clean up the worktree
+   gh pr merge <pr> --squash --auto           # enters main's merge queue
+   pnpm wt rm <name>                          # clean up once it has landed
    ```
 
 The full version, including the `gh api` fallback when `@copilot` won’t resolve,
