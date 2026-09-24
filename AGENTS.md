@@ -90,9 +90,9 @@ agents the issue-first flow below is required.)
    comment cannot merge, even with every check green. It silently never enters
    the merge queue, and `gh pr checks` shows nothing wrong. Resolve each thread
    you address. For one you deliberately decline, reply with the reason, then
-   resolve it. Pushing the fix does not resolve a thread, and neither does replying
-   at PR level. There is no `gh pr` porcelain — reply on each thread and
-   resolve it over GraphQL:
+   resolve it. Pushing the fix does not resolve a thread, and neither does
+   replying at PR level. There is no `gh pr` porcelain — reply on each thread
+   and resolve it over GraphQL:
    ```sh
    # list the open threads
    gh api graphql -f query='query { repository(owner:"signalxjs", name:"<REPO>") {
