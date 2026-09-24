@@ -87,7 +87,8 @@ Then, file by file:
 - [ ] **`.github/ISSUE_TEMPLATE/bug_report.yml` + `feature_request.yml`** —
       fill the package dropdowns, or delete them for a single package.
 - [ ] **`.size-limit.json`** — set real dist paths and limits, or delete the
-      file and `bundle-size.yml` if you don’t ship a bundle.
+      file, `bundle-size.yml` and `bundle-size-queue.yml` if you don’t ship
+      a bundle.
 - [ ] **`SECURITY.md`** — set the supported-versions line.
 - [ ] **`package.json`** — `name`, `description`, `repository`, plus `lint` /
       `typecheck` / `build` / `test` / `size` scripts that `AGENTS.md` and CI call.
