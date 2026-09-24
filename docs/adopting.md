@@ -111,12 +111,16 @@ lines aren't tested fails the `codecov/patch` check. To turn it on:
      --checks "test (ubuntu-latest, 22); verify-pack; codecov/patch"
    ```
    (`codecov.yml` keeps `codecov/project` informational, so only the patch gate
-   blocks.)
+   blocks.) `main` merges through a merge queue. Before requiring the patch
+   gate, drop the `merge_group` guard on `coverage` and confirm the gate
+   reports on a queue ref. See
+   [branch-protection.md](branch-protection.md#every-required-check-must-run-on-merge_group).
 
 ### Trimming workflows per repo
 
 - `ci.yml` — keep always. Don't use Codecov? Drop the `coverage` job *and*
-  `codecov.yml`. Drop `verify-pack` if you don't publish.
+  `codecov.yml`. Drop `verify-pack` if you don't publish. Keep the
+  `merge_group` trigger: the merge queue needs it to run the required checks.
 - `bundle-size.yml` — keep only if you ship a size-limited bundle.
 - `release.yml` — keep only if you publish to npm; needs `scripts/publish.js` +
   trusted publishing configured on npmjs.com. See its header comment.

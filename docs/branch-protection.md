@@ -37,6 +37,8 @@ name and updates it, or creates it if missing.
 
 - **Squash-only** — merge commits and rebase-merges are disabled, so `main` stays
   linear. This is why `AGENTS.md` says “repo rules block merge commits.”
+- **Auto-merge allowed** — `gh pr merge --squash --auto` is how a PR enters
+  the merge queue (AGENTS.md step 6).
 - **Auto-delete head branch on merge** — keeps the branch list clean.
 
 **Ruleset on `main`**
@@ -51,8 +53,29 @@ name and updates it, or creates it if missing.
   - **CODEOWNERS review required** when `--approvals` ≥ 1 (so `.github/CODEOWNERS` gates),
   - **review threads must be resolved** before merge.
 - **No force-push** (`non_fast_forward`) and **no deletion** of `main`.
+- **Merge queue** (squash, `ALLGREEN`, groups of up to 5, the same as
+  `signalxjs/core`): queued PRs are tested together against the latest `main`
+  and merged in order, so a merge never leaves the next PR stale.
 - **Required status checks** (optional, via `--checks`): the listed checks must
-  pass and the branch must be up to date before merge.
+  pass. They are **not strict** (the branch need not be up to date), since the
+  queue re-runs them on its own ref against the latest `main`.
+
+## Every required check must run on `merge_group`
+
+The queue builds each group on a temporary `gh-readonly-queue/main/…` ref and
+waits for every required check to report there. If a workflow that produces a
+required check lacks the `merge_group:` trigger, queued PRs wait on checks
+that never run until the queue times out (`signalxjs/core#336`). So:
+
+- `ci.yml` and `bundle-size.yml` in this template trigger on `merge_group`. If
+  you add a workflow whose check you require, give it the trigger too.
+- Jobs that are *not* required can skip the queue run with
+  `if: github.event_name != 'merge_group'` (the template's `coverage` does).
+  They already ran on the PR. If you later require one, drop its guard in the
+  same change.
+- `codecov/patch` is reported by Codecov, not by a job. Before requiring it,
+  confirm it reports on a queue ref (with `coverage` unguarded), or it will
+  wedge the queue.
 
 `bypass_actors` is intentionally empty — not even admins skip the PR flow. If you
 ever need an escape hatch, add actor IDs there and re-run.
